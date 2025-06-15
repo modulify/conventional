@@ -1,18 +1,15 @@
-import { defineConfig } from 'vitest/config'
-import { join } from 'node:path'
+import {
+  defineConfig,
+  mergeConfig,
+} from 'vitest/config'
 
-export default defineConfig({
-  resolve: {
-    alias: {
-      '@': join(__dirname, './src/'),
-      '~tests': join(__dirname, './tests/'),
-      '~types': join(__dirname, './types/'),
-    },
-  },
+import common from './vite.config.common'
+
+export default mergeConfig(common, defineConfig({
   test: {
     coverage: {
       provider: 'istanbul',
       include: ['src/**'],
     },
   },
-})
+}))
