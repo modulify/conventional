@@ -20,12 +20,20 @@ build: pnp ## Creates a dist catalogue with library build
 .PHONY: eslint
 eslint: pnp ## Runs eslint
 	$(TARGET_HEADER)
-	$(YARN) lint
+ifdef cli
+	$(YARN) eslint $(cli)
+else
+	$(YARN) eslint
+endif
 
 .PHONY: test
 test: pnp ## Runs autotests
 	$(TARGET_HEADER)
+ifdef cli
+	$(YARN) test $(cli) --passWithNoTests
+else
 	$(YARN) test
+endif
 
 .PHONY: test-coverage
 test-coverage: pnp ## Runs autotests with --coverage
