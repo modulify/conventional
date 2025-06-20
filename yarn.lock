@@ -791,7 +791,20 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@modulify/conventional-git@workspace:packages/conventional-git":
+"@modulify/conventional-bump@workspace:packages/conventional-bump":
+  version: 0.0.0-use.local
+  resolution: "@modulify/conventional-bump@workspace:packages/conventional-bump"
+  dependencies:
+    "@modulify/conventional-git": "npm:^0.0.0"
+  peerDependencies:
+    "@types/node": ">=20"
+  peerDependenciesMeta:
+    "@types/node":
+      optional: true
+  languageName: unknown
+  linkType: soft
+
+"@modulify/conventional-git@npm:^0.0.0, @modulify/conventional-git@workspace:packages/conventional-git":
   version: 0.0.0-use.local
   resolution: "@modulify/conventional-git@workspace:packages/conventional-git"
   dependencies:

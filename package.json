@@ -28,7 +28,7 @@
     "vitest": "^3.2.3"
   },
   "scripts": {
-    "build": "yarn workspaces foreach -W run build",
+    "build": "yarn workspaces foreach -A --topological-dev run build",
     "commitlint": "commitlint --edit",
     "eslint": "yarn workspaces foreach -W run eslint",
     "test": "vitest run"
