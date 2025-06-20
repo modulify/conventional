@@ -38,8 +38,11 @@ export interface TagStreamOptions {
 export class Client {
   private readonly _git: GitClient
 
-  constructor () {
-    this._git = new GitClient()
+  constructor ({ cwd, git }: {
+    cwd?: string;
+    git?: GitClient;
+  } = {}) {
+    this._git = git ?? new GitClient({ cwd })
   }
 
   get git () {
