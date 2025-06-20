@@ -1,0 +1,20 @@
+{
+  "name": "@modulify/conventional-bump",
+  "type": "module",
+  "version": "0.0.0",
+  "license": "ISC",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "peerDependencies": {
+    "@types/node": ">=20"
+  },
+  "peerDependenciesMeta": {
+    "@types/node": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@modulify/conventional-git": "^0.0.0"
+  }
+}
