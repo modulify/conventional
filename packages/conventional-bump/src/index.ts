@@ -34,7 +34,7 @@ export const DEFAULT_COMMIT_TYPES = Object.freeze(([
 const RELEASE_TYPES = [
   'major',
   'minor',
-  'patch'
+  'patch',
 ] as const
 
 const reverts = (commit: Commit) => (revert: CommitMeta) => {
@@ -46,17 +46,18 @@ export class ReleaseAdvisor {
   private readonly parse: ParseOptions
   private readonly types: CommitType[]
 
-  constructor ({ git, parse, types }: {
+  constructor ({ cwd, git, parse, types }: {
+    cwd?: string;
     git?: Client;
     parse?: ParseOptions;
     types?: CommitType[];
   } = {}) {
-    this.git = git ?? new Client()
+    this.git = git ?? new Client({ cwd })
     this.parse = parse ?? {}
     this.types = types ?? DEFAULT_COMMIT_TYPES as CommitType[]
   }
 
-  async advise ({ ignore, ignoreReverted = true, preMajor, strict }: {
+  async advise ({ ignore, ignoreReverted = true, preMajor = false, strict = false }: {
     ignore?: (commit: Commit) => boolean;
     ignoreReverted?: boolean;
     preMajor?: boolean;
@@ -64,15 +65,15 @@ export class ReleaseAdvisor {
   } = {}): Promise<ReleaseRecommendation | null> {
     const last = await this.git.tags().first()
     const commits = this.git.commits({
-      from: last,
+      ...last && { from: last },
       parse: this.parse,
     })
 
-    const hidden = strict && this.types.reduce((known, t) => {
+    const hidden = strict ? this.types.reduce((known, t) => {
       if (t.hidden) known.push(t.type)
 
       return known
-    }, [] as string[])
+    }, [] as string[]) : []
 
     const reverted: CommitMeta[] = []
 
@@ -84,7 +85,7 @@ export class ReleaseAdvisor {
     for await (const commit of commits) {
       if (ignoreReverted) {
         if (reverted.some(reverts(commit))) continue
-        if (commit.type === 'revert') reverted.push(commit.revert)
+        if (commit.type === 'revert' && commit.revert) reverted.push(commit.revert)
       }
 
       if (ignore && ignore(commit)) continue
@@ -98,7 +99,7 @@ export class ReleaseAdvisor {
         if (level === 2) {
           level = 1
         }
-      } else if (strict && !hidden.includes(commit.type)) {
+      } else if (strict && !hidden.includes(commit.type as string)) {
         fixes += 1
       }
     }
