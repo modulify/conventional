@@ -1,0 +1,102 @@
+name: Tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  eslint:
+    runs-on: ubuntu-22.04
+
+    strategy:
+      matrix:
+        node-version: [ 20.x, 22.x ]
+
+    steps:
+    - name: Using branch ${{ github.ref }} for repository ${{ github.repository }}.
+      uses: actions/checkout@v4
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - name: Yarn configuration
+      run: |
+        make .yarnrc.yml
+        echo "enableGlobalCache: false" >> .yarnrc.yml
+
+    - name: Cache Yarn PnP dependencies
+      id: cache-deps
+      uses: actions/cache@v4
+      with:
+        path: |
+          .yarn
+          .pnp.*
+        key: ${{ runner.OS }}-node-${{ matrix.node-version }}-yarn-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.OS }}-node-${{ matrix.node-version }}-yarn-
+
+    - name: Install dependencies
+      run: |
+        yarn install
+
+    - name: Run eslint
+      run: |
+        yarn eslint
+
+  tests:
+    needs: eslint
+
+    runs-on: ubuntu-22.04
+
+    strategy:
+      matrix:
+        node-version: [ 20.x, 22.x ]
+
+    steps:
+    - name: Using branch ${{ github.ref }} for repository ${{ github.repository }}.
+      uses: actions/checkout@v4
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - name: Yarn configuration
+      run: |
+        make .yarnrc.yml
+        echo "enableGlobalCache: false" >> .yarnrc.yml
+
+    - name: Cache Yarn PnP dependencies
+      id: cache-deps
+      uses: actions/cache@v4
+      with:
+        path: |
+          .yarn
+          .pnp.*
+        key: ${{ runner.OS }}-node-${{ matrix.node-version }}-yarn-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.OS }}-node-${{ matrix.node-version }}-yarn-
+
+    - name: Install dependencies
+      run: |
+        yarn install
+
+    - name: Run tests
+      run: |
+        yarn test:coverage
+
+    - name: Upload coverage to GitHub Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-${{ matrix.node-version }}
+        path: coverage/
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./coverage/lcov.info
