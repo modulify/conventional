@@ -10,8 +10,6 @@
     "jsx": "preserve",
     "lib": [
       "ESNext",
-      "DOM",
-      "DOM.Iterable",
       "ScriptHost"
     ],
     "module": "ES2022",
