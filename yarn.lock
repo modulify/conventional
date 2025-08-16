@@ -791,10 +791,30 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@modulify/conventional-bump@workspace:packages/conventional-bump":
+"@modulify/conventional-bump@npm:^0.0.0, @modulify/conventional-bump@workspace:packages/conventional-bump":
   version: 0.0.0-use.local
   resolution: "@modulify/conventional-bump@workspace:packages/conventional-bump"
   dependencies:
+    "@modulify/conventional-git": "npm:^0.0.0"
+    "@types/node": "npm:^22.13.5"
+    "@types/semver": "npm:^7.5.8"
+    tslib: "npm:^2.8.1"
+    vite: "npm:^6.3.4"
+    vite-plugin-dts: "npm:^4.5.4"
+    vitest: "npm:^3.1.2"
+  peerDependencies:
+    "@types/node": ">=20"
+  peerDependenciesMeta:
+    "@types/node":
+      optional: true
+  languageName: unknown
+  linkType: soft
+
+"@modulify/conventional-changelog@workspace:packages/conventional-changelog":
+  version: 0.0.0-use.local
+  resolution: "@modulify/conventional-changelog@workspace:packages/conventional-changelog"
+  dependencies:
+    "@modulify/conventional-bump": "npm:^0.0.0"
     "@modulify/conventional-git": "npm:^0.0.0"
     "@types/node": "npm:^22.13.5"
     "@types/semver": "npm:^7.5.8"

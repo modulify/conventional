@@ -1,0 +1,71 @@
+{
+  "name": "@modulify/conventional-changelog",
+  "type": "module",
+  "version": "0.0.0",
+  "license": "ISC",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.mjs"
+    },
+    "./dist/*": "./dist/*",
+    "./types/*": "./types/*"
+  },
+  "types": "dist/index.d.ts",
+  "peerDependencies": {
+    "@types/node": ">=20"
+  },
+  "peerDependenciesMeta": {
+    "@types/node": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@modulify/conventional-bump": "^0.0.0",
+    "@modulify/conventional-git": "^0.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.5",
+    "@types/semver": "^7.5.8",
+    "tslib": "^2.8.1",
+    "vite": "^6.3.4",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^3.1.2"
+  },
+  "author": {
+    "name": "modulify",
+    "email": "https://github.com/modulify"
+  },
+  "contributors": [
+    {
+      "name": "Zaitsev Kirill",
+      "email": "zaytsev.cmath10@gmail.com"
+    },
+    {
+      "name": "conventional-changelog team",
+      "url": "https://github.com/conventional-changelog"
+    }
+  ],
+  "keywords": [
+    "conventional",
+    "git",
+    "release"
+  ],
+  "files": [
+    "dist",
+    "types",
+    "LICENSE.md",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vite build"
+  }
+}
