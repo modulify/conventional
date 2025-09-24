@@ -85,7 +85,7 @@ export class ReleaseAdvisor {
     for await (const commit of commits) {
       if (ignoreReverted) {
         if (reverted.some(reverts(commit))) continue
-        if (commit.type === 'revert' && commit.revert) reverted.push(commit.revert)
+        if (commit.revert) reverted.push(commit.revert)
       }
 
       if (ignore && ignore(commit)) continue
