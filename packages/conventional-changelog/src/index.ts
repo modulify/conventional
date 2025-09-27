@@ -1,4 +1,5 @@
 import type { Commit } from '@modulify/conventional-git/types/commit'
+import type { CommitMeta } from '@modulify/conventional-git/types/commit'
 import type { CommitType } from '@modulify/conventional-bump'
 
 import { Client } from '@modulify/conventional-git'
@@ -13,6 +14,10 @@ export interface ChangelogOptions {
   cwd?: string;
   /** Git client instance. */
   git?: Client;
+}
+
+const reverts = (commit: Commit) => (revert: CommitMeta) => {
+  return revert.header === commit.header
 }
 
 export class ChangelogWriter {
@@ -40,10 +45,15 @@ export class ChangelogWriter {
       }
     }
 
+    const reverted: CommitMeta[] = []
+
     for await (const commit of commits) {
+      if (reverted.some(reverts(commit))) continue
+      if (commit.revert) reverted.push(commit.revert)
+
       const type = this.types.find(t => t.type === commit.type)
       if (type && sections.has(type.section)) {
-          sections.get(type.section)?.push(commit)
+        sections.get(type.section)?.push(commit)
       }
     }
 
