@@ -38,6 +38,12 @@ export interface TagStreamOptions {
 export class Client {
   private readonly _git: GitClient
 
+  /**
+   * Creates a new git Client wrapper.
+   * @param options - Initialization options.
+   * @param options.cwd - Working directory for the underlying git client.
+   * @param options.git - Custom GitClient instance (mainly for testing).
+   */
   constructor ({ cwd, git }: {
     cwd?: string;
     git?: GitClient;
@@ -45,6 +51,7 @@ export class Client {
     this._git = git ?? new GitClient({ cwd })
   }
 
+  /** Access to the underlying low-level Git client. */
   get git () {
     return this._git
   }

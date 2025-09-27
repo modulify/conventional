@@ -41,11 +41,20 @@ const reverts = (commit: Commit) => (revert: CommitMeta) => {
   return revert.header === commit.header
 }
 
+/** Advisor that analyzes git history and recommends the next semantic version. */
 export class ReleaseAdvisor {
   private readonly git: Client
   private readonly parse: ParseOptions
   private readonly types: CommitType[]
 
+  /**
+   * Creates a new ReleaseAdvisor.
+   * @param options - Initialization options.
+   * @param options.cwd - Working directory for git commands.
+   * @param options.git - Custom git client instance (mainly for testing).
+   * @param options.parse - Parser options for conventional commits.
+   * @param options.types - Commit types mapping to sections/visibility.
+   */
   constructor ({ cwd, git, parse, types }: {
     cwd?: string;
     git?: Client;
@@ -57,6 +66,15 @@ export class ReleaseAdvisor {
     this.types = types ?? DEFAULT_COMMIT_TYPES as CommitType[]
   }
 
+  /**
+   * Analyzes commits since the last tag and recommends the next release type.
+   * @param options - Advisory options.
+   * @param options.ignore - Predicate to skip specific commits from analysis.
+   * @param options.ignoreReverted - When true, ignore commits that were reverted later. Defaults to true.
+   * @param options.preMajor - If true, downgrade major to minor and minor to patch for pre-1.0.0 releases.
+   * @param options.strict - If true, return null when there are no meaningful changes.
+   * @returns Release recommendation or null when nothing should be released (only in strict mode).
+   */
   async advise ({ ignore, ignoreReverted = true, preMajor = false, strict = false }: {
     ignore?: (commit: Commit) => boolean;
     ignoreReverted?: boolean;

@@ -20,11 +20,20 @@ const reverts = (commit: Commit) => (revert: CommitMeta) => {
   return revert.header === commit.header
 }
 
+/** Writes a changelog based on conventional commits. */
 export class ChangelogWriter {
   private readonly git: Client
   private readonly types: CommitType[]
   private readonly output?: Writable
 
+  /**
+   * Creates a new ChangelogWriter.
+   * @param options - Changelog writer options.
+   * @param options.types - Custom commit types configuration to group sections.
+   * @param options.output - Optional output stream to write the changelog to.
+   * @param options.cwd - Working directory for git commands.
+   * @param options.git - Custom git client instance (mainly for testing).
+   */
   constructor({
     types,
     output,
@@ -36,6 +45,12 @@ export class ChangelogWriter {
     this.output = output
   }
 
+  /**
+   * Generates changelog content based on commits and configured sections.
+   * Skips commits that were reverted later and groups entries by section.
+   * When an output stream is provided, writes the content to it as well.
+   * @returns Generated changelog content as a string.
+   */
   async write() {
     const commits = this.git.commits()
     const sections = new Map<string, Commit[]>()
