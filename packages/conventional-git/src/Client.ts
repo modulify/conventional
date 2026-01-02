@@ -72,7 +72,7 @@ export class Client {
    * @param options
    * @param options.prefix - Get semver tags with specific prefix.
    * @param options.skipUnstable - Skip semver tags with unstable versions.
-   * @param options.clean - Clean version from prefix and trash.
+   * @param options.clean - Clean a version from prefix and trash.
    * @yields Semver tags.
    */
   tags (options: TagStreamOptions = {}) {

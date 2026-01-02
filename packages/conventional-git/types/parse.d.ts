@@ -11,7 +11,7 @@ export interface ParseOptions {
   /** Pattern to match what this commit reverts. */
   revertPattern?: RegExp;
   /**
-   * Used to define what capturing group of `revertPattern` captures what reverted commit fields.
+   * Used to define what a capturing group of `revertPattern` captures what reverted commit fields.
    * The order of the array should correspond to the order of `revertPattern`'s capturing group.
    */
   revertCorrespondence?: string[]
