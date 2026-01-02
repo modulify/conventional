@@ -130,6 +130,6 @@ export class Client {
       return null
     }
 
-    return tags.sort(semver.rcompare)[0] ?? null
+    return tags.sort(semver.rcompare)[0]
   }
 }

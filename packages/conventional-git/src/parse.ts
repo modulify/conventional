@@ -235,6 +235,8 @@ function parseReference (input: string, action: string | null, patterns: ParsePa
 }
 
 function parseReferences (input: string, patterns: ParsePatterns) {
+  if (!input || !patterns.references) return []
+
   const regex = input.match(patterns.references) ? patterns.references : MATCH_EVERYTHING
   const references: CommitReference[] = []
 
