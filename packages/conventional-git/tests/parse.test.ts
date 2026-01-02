@@ -160,5 +160,119 @@ describe('parse', () => {
         meta: {},
       })
     })
+
+    it('should parse mentions', () => {
+      const commit = parse('feat: subject\n\nBody with @user1 and @user2')
+
+      expect(commit.mentions).toEqual(['user1', 'user2'])
+    })
+
+    it('should parse complex references', () => {
+      const commit = parse('fix: issue in another repo owner/repo#123')
+
+      expect(commit.references).toEqual([{
+        raw: 'fix: issue in another repo owner/repo#123',
+        issue: '123',
+        action: null,
+        prefix: '#',
+        owner: 'owner',
+        repository: 'repo',
+      }])
+    })
+
+    it('should parse revert commits', () => {
+      const commit = parse('Revert "feat: original subject"\n\nThis reverts commit 1234567.')
+
+      expect(commit.revert).toEqual({
+        header: 'feat: original subject',
+        hash: '1234567',
+      })
+    })
+  })
+
+  describe('options', () => {
+    it('should support mergePattern with manageable fields', () => {
+      const parse = createParser({
+        mergePattern: /^Merge branch '([\w-]+)' into ([\w-]+)/,
+        mergeCorrespondence: ['branch', 'body'],
+      })
+
+      const commit = parse('Merge branch \'feature-branch\' into main\n\nfeat: some feature')
+
+      expect(commit.merge).toBe('Merge branch \'feature-branch\' into main')
+      expect(commit.meta.branch).toBe('feature-branch')
+      expect(commit.body).toContain('main')
+    })
+
+    it('should support custom fieldPattern with manageable fields', () => {
+      const parse = createParser({ fieldPattern: /^-(.*?)-$/ })
+      const commit = parse('feat: subject\n\n-body-\nCustom body')
+
+      expect(commit.body).toBe('Custom body')
+    })
+
+    it('should support commentChar', () => {
+      const parse = createParser({ commentChar: '#' })
+      const commit = parse('feat: subject\n# this is a comment\n\nbody')
+
+      expect(commit.body).toBe('body')
+    })
+
+    it('should support custom issuePrefixes', () => {
+      const parse = createParser({ issuePrefixes: ['GH-'] })
+      const commit = parse('fix: some bug GH-123')
+
+      expect(commit.references[0].issue).toBe('123')
+      expect(commit.references[0].prefix).toBe('GH-')
+    })
+
+    it('should support multiple notes keywords', () => {
+      const parse = createParser({
+        notesKeywords: ['BREAKING CHANGE', 'SECURITY'],
+      })
+
+      const commit = parse('feat: subject\n\nSECURITY: this is a security note')
+
+      expect(commit.notes[0]).toEqual({
+        title: 'SECURITY',
+        text: 'this is a security note',
+      })
+    })
+  })
+
+  describe('edge cases', () => {
+    const parse = createParser()
+
+    it('should handle empty body and footer', () => {
+      const commit = parse('feat: subject\n\n\n')
+
+      expect(commit.body).toBe(null)
+      expect(commit.footer).toBe(null)
+    })
+
+    it('should handle multiline notes', () => {
+      const commit = parse('feat: subject\n\nBREAKING CHANGE: line 1\nline 2')
+
+      expect(commit.notes[0].text).toBe('line 1\nline 2')
+    })
+
+    it('should handle notes with fields', () => {
+      const commit = parse('feat: subject\n\nBREAKING CHANGE: some note\n-field-\nvalue')
+
+      expect(commit.notes[0].text).toBe('some note')
+      expect(commit.fields.field).toBe('value')
+    })
+
+    it('should ignore URLs in references', () => {
+      const commit = parse('fix: see https://example.com/issue/1')
+
+      expect(commit.references).toEqual([])
+    })
+
+    it('should handle only line breaks', () => {
+      const commit = parse('\n\n\n')
+
+      expect(commit.header).toBe(null)
+    })
   })
 })
