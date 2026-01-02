@@ -1,5 +1,4 @@
 import { ChangelogWriter } from '@/index'
-import { Writable } from 'node:stream'
 
 import {
   afterEach,
