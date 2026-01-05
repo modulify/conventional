@@ -1,4 +1,5 @@
 export interface Commit {
+  hash: string | null;
   type: string | null;
   scope: string | null;
   subject: string | null;

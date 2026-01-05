@@ -63,6 +63,7 @@ export class Client {
   commits (options: CommitStreamOptions = {}) {
     return this._git.commits({
       ...options,
+      format: `%H%n${options.format ?? '%B'}`,
       parser: createParser(options.parse ?? {}),
     })
   }

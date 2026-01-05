@@ -19,6 +19,7 @@ describe('parse', () => {
       ['header', null, null, null],
     ])('should parse type, scope and subject in: %s', (header, type, scope, subject) => {
       expect(parse(header)).toEqual({
+        hash: null,
         type,
         scope,
         subject,
@@ -41,6 +42,7 @@ describe('parse', () => {
       ['feat(scope)!: subject', 'feat', 'scope', 'subject'],
     ])('should parse breaking change note in: %s', (header, type, scope, subject) => {
       expect(parse(header)).toEqual({
+        hash: null,
         type,
         scope,
         subject,
@@ -75,6 +77,7 @@ describe('parse', () => {
         + '* revParse\n'
         + '* show\n'
       )).toEqual({
+        hash: null,
         type: 'feat',
         scope: 'git',
         subject: 'Commands',
@@ -97,6 +100,7 @@ describe('parse', () => {
         + '\n'
         + 'Closes #2597'
       )).toEqual({
+        hash: null,
         type: 'fix',
         scope: null,
         subject: 'Annoying bug',
@@ -131,6 +135,7 @@ describe('parse', () => {
         + 'BREAKING CHANGE: some breaking change\n'
         + 'Closes #1\n'
       )).toEqual({
+        hash: null,
         merge: null,
         header: 'feat(scope): Broadcast $destroy event on scope destruction',
         scope: 'scope',
@@ -272,7 +277,23 @@ describe('parse', () => {
     it('should handle only line breaks', () => {
       const commit = parse('\n\n\n')
 
+      expect(commit.hash).toBe(null)
       expect(commit.header).toBe(null)
+    })
+
+    it('should parse hash if provided as first line', () => {
+      const commit = parse('1234567890abcdef1234567890abcdef12345678\nfeat: subject')
+
+      expect(commit.hash).toBe('1234567890abcdef1234567890abcdef12345678')
+      expect(commit.type).toBe('feat')
+      expect(commit.subject).toBe('subject')
+    })
+
+    it('should parse short hash if provided as first line', () => {
+      const commit = parse('1234567\nfeat: subject')
+
+      expect(commit.hash).toBe('1234567')
+      expect(commit.type).toBe('feat')
     })
   })
 })

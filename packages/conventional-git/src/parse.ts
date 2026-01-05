@@ -10,6 +10,7 @@ import type {
   ParsePatterns,
 } from '~types/parse'
 
+const MATCH_HASH = /^[0-9a-fA-F]{7,64}$/
 const MATCH_HEADER = /^(\w*)(?:\(([\w@$.\-*/ ]*)\))?(!)?: (.*)$/
 const MATCH_URL = /\b(?:https?):\/\/(?:www\.)?([-a-zA-Z0-9@:%_+.~#?&//=])+\b/
 
@@ -46,7 +47,13 @@ export function createParser (options: ParseOptions = {}) {
 
   return (raw: string): Commit => {
     const commit = createCommit()
-    const content = { lines: linesOf(raw, _options), cursor: 0 }
+    const lines = linesOf(raw, _options)
+
+    if (lines.length > 0 && MATCH_HASH.test(lines[0])) {
+      commit.hash = lines.shift() || null
+    }
+
+    const content = { lines, cursor: 0 }
 
     parseMerge(commit, content, patterns, _options.mergeCorrespondence)
     parseHeader(commit, content)
@@ -82,7 +89,7 @@ export function createParser (options: ParseOptions = {}) {
 
     headless.forEach(line => commit.mentions.push(...parseMentions(line, patterns)))
 
-    commit.revert = parseRevert(raw, _options.revertPattern, _options.revertCorrespondence)
+    commit.revert = parseRevert(lines.join('\n'), _options.revertPattern, _options.revertCorrespondence)
 
     if (commit.body) commit.body = trimLineBreaks(commit.body)
     if (commit.footer) commit.footer = trimLineBreaks(commit.footer)
@@ -100,6 +107,7 @@ type Content = {
 
 function createCommit (): Commit {
   return {
+    hash: null,
     type: null,
     scope: null,
     subject: null,
