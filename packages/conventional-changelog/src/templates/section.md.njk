@@ -1,0 +1,5 @@
+{%- if section.title -%}### {{ section.title }}{{ "\n\n" }}{%- endif -%}
+
+{%- for commit in section.commits -%}
+    {% include "commit.md.njk" %}{{ "\n" if not loop.last }}
+{%- endfor -%}

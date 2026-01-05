@@ -1,0 +1,22 @@
+* {% if commit.scope %}**{{ commit.scope }}:** {% endif %} {{- commit.subject if commit.subject else commit.header -}}
+
+{%- if commit.hash -%}
+  {% set shortHash = commit.hash | shorten(7) %}
+  {%- if linkReferences %} ([{{ shortHash }}]({{ commitUrlFormat | forge({ host: host, owner: owner, repository: repository, hash: commit.hash, shortHash: shortHash }) }}))
+  {%- else %} {{ shortHash }}
+  {%- endif -%}
+{%- endif -%}
+
+{%- if commit.references.length -%}
+  , closes
+  {%- for ref in commit.references %}
+    {%- if linkReferences %} [
+      {%- if ref.owner %}{{ ref.owner }}/{% endif -%}
+      {{ ref.repository }}{{ ref.prefix }}{{ ref.issue }}]({{ issueUrlFormat }})
+    {%- else %}
+      {%- if ref.owner %}{{ ref.owner }}/{% endif -%}
+      {{ ref.repository }}{{ ref.prefix }}{{ ref.issue }}
+    {%- endif -%}
+    {%- if not loop.last %}, {% endif -%}
+  {%- endfor -%}
+{%- endif -%}

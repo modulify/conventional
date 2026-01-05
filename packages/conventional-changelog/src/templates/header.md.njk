@@ -1,0 +1,9 @@
+## {% if linkCompare -%}
+  [{{ version }}]({{ compareUrlFormat | forge({ host: host, owner: owner, repository: repository, previousTag: previousTag, currentTag: currentTag }) }})
+{%- else -%}
+  {{ version }}
+{%- endif -%}
+
+{%- if title %} "{{ title }}"{% endif -%}
+
+{%- if date %} ({{ date }}){% endif %}

@@ -1,0 +1,14 @@
+{%- include "header.md.njk" -%}
+{{- "\n\n" -}}
+{% for group in highlights %}
+### ⚠ {{ group.title if group.title else 'Important' }}
+
+{%- for note in group.notes -%}
+* {% if note.commit.scope %}**{{ note.commit.scope }}:** {% endif %}{{ note.text }}{{ "\n" if not loop.last }}
+{%- endfor -%}
+{{ "\n\n" if not loop.last or (sections | length) > 0 }}
+{% endfor %}
+
+{%- for section in sections -%}
+{% include "section.md.njk" %}{{ "\n\n" if not loop.last }}
+{%- endfor -%}
