@@ -132,4 +132,16 @@ export class Client {
 
     return tags.sort(semver.rcompare)[0]
   }
+
+  async url(remote: string = 'origin') {
+    try {
+      return await this._git.cmd.exec('remote', ['get-url', remote])
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message.includes(remote)) {
+        return ''
+      }
+
+      throw e
+    }
+  }
 }
