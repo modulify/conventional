@@ -1,0 +1,19 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 90%
+    patch:
+      default:
+        target: 80%
+
+flags:
+  conventional-git:
+    paths:
+      - packages/conventional-git/src/
+  conventional-bump:
+    paths:
+      - packages/conventional-bump/src/
+  conventional-changelog:
+    paths:
+      - packages/conventional-changelog/src/

@@ -1,5 +1,9 @@
 # @modulify/conventional-bump
 
+[![codecov](https://codecov.io/gh/modulify/conventional/branch/main/graph/badge.svg?flag=conventional-bump)](https://codecov.io/gh/modulify/conventional?flags[0]=conventional-bump)
+
+[🌐 Translations](./docs/INDEX.md)
+
 Помощник для семантических релизов, который анализирует conventional-коммиты и рекомендует следующую версию (major/minor/patch) на основе вашей истории git.
 
 - Репозиторий: https://github.com/modulify/conventional

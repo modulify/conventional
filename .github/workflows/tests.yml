@@ -104,3 +104,4 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: ./coverage/lcov.info
+        flags: conventional-git,conventional-bump,conventional-changelog

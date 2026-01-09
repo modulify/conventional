@@ -1,5 +1,7 @@
 # @modulify/conventional-git
 
+[![codecov](https://codecov.io/gh/modulify/conventional/branch/main/graph/badge.svg?flag=conventional-git)](https://codecov.io/gh/modulify/conventional?flags[0]=conventional-git)
+
 [🌐 Translations](./docs/INDEX.md)
 
 Thin wrapper over git that adds conventional-commit parsing and semantic tag helpers.

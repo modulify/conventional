@@ -1,5 +1,7 @@
 # @modulify/conventional-bump
 
+[![codecov](https://codecov.io/gh/modulify/conventional/branch/main/graph/badge.svg?flag=conventional-bump)](https://codecov.io/gh/modulify/conventional?flags[0]=conventional-bump)
+
 [🌐 Translations](./docs/INDEX.md)
 
 Semantic-release helper that analyzes conventional commits and recommends the next version (major/minor/patch)

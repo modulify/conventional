@@ -1,5 +1,7 @@
 # @modulify/conventional-changelog
 
+[![codecov](https://codecov.io/gh/modulify/conventional/branch/main/graph/badge.svg?flag=conventional-changelog)](https://codecov.io/gh/modulify/conventional?flags[0]=conventional-changelog)
+
 [🌐 Translations](./docs/INDEX.md)
 
 Generate a changelog from your git history using conventional commits.
