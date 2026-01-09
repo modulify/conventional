@@ -268,4 +268,31 @@ describe('Client', () => {
       expect(await client.version({ prefix: 'pkg@' })).toBe('1.1.0')
     })
   })
+
+  describe('url', () => {
+    it('should return remote url', async () => {
+      exec('git remote add origin https://github.com/fork/conventional.git')
+      exec('git remote add upstream https://github.com/modulify/conventional.git')
+
+      const client = new Client({ cwd })
+
+      expect(await client.url()).toBe('https://github.com/fork/conventional.git')
+      expect(await client.url('upstream')).toBe('https://github.com/modulify/conventional.git')
+    })
+
+    it('should return empty string if remote does not exist', async () => {
+      const client = new Client({ cwd })
+
+      expect(await client.url('non-existent')).toBe('')
+    })
+
+    it('should throw other errors', async () => {
+      const client = new Client({ cwd })
+
+      // @ts-expect-error accessing private for test
+      vi.spyOn(client._git.cmd, 'exec').mockRejectedValue(new Error('Unexpected error'))
+
+      await expect(client.url()).rejects.toThrow('Unexpected error')
+    })
+  })
 })

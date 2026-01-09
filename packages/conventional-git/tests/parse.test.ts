@@ -295,5 +295,57 @@ describe('parse', () => {
       expect(commit.hash).toBe('1234567')
       expect(commit.type).toBe('feat')
     })
+
+    it('should handle notes followed by other notes', () => {
+      const commit = parse('feat: subject\n\nBREAKING CHANGE: note 1\nBREAKING CHANGE: note 2')
+
+      expect(commit.notes).toHaveLength(2)
+      expect(commit.notes[0].text).toBe('note 1')
+      expect(commit.notes[1].text).toBe('note 2')
+    })
+
+    it('should handle notes followed by references', () => {
+      const commit = parse('feat: subject\n\nBREAKING CHANGE: note 1\nCloses #123')
+      expect(commit.notes[0].text).toBe('note 1')
+      expect(commit.references[0].issue).toBe('123')
+    })
+
+    it('should handle merge commits with correspondence that are not manageable', () => {
+      const parse = createParser({
+        mergePattern: /^Merge branch '([\w-]+)'/,
+        mergeCorrespondence: ['nonManageable'],
+      })
+
+      const commit = parse('Merge branch \'feature\'\nheader')
+
+      expect(commit.meta.nonManageable).toBe('feature')
+    })
+
+    it('should handle parseReference returning null for malformed reference', () => {
+      const parse = createParser({
+        issuePrefixes: ['#'],
+      })
+
+      const commit = parse('fix: something with # but no number #abc')
+
+      expect(commit.references).toEqual([])
+    })
+
+    it('should handle parseRevert with missing correspondence fields', () => {
+      const parse = createParser({
+        revertPattern: /^Revert (.*)/,
+        revertCorrespondence: ['customField'],
+      })
+
+      const commit = parse('Revert some subject')
+
+      expect(commit.revert?.customField).toBe('some subject')
+    })
+
+    it('should handle trimLineBreaks for only line breaks', () => {
+      const commit = parse('\n\n')
+
+      expect(commit.header).toBe(null)
+    })
   })
 })
