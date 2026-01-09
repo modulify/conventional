@@ -1,4 +1,4 @@
-import { createRender } from '@/render'
+import { DynamicLoader, createRender, forge } from '@/render'
 import { describe } from 'vitest'
 import { expect } from 'vitest'
 import { it } from 'vitest'
@@ -103,5 +103,37 @@ describe('render', () => {
     expect(() => render.header({
       templatePath: 'non-existent.njk',
     })).toThrow()
+  })
+
+  it('supports custom templates and paths', () => {
+    const render = createRender()
+
+    expect(forge('Hello {{name}}', { name: 'World' })).toBe('Hello World')
+
+    expect(render.header({ template: 'Custom Header {{version}}', context: { version: '1.1.0' } }))
+      .toBe('Custom Header 1.1.0')
+  })
+
+  it('DynamicLoader.getSource returns null for unknown templates', () => {
+    const loader = new DynamicLoader()
+    expect(loader.getSource('unknown.njk')).toBeNull()
+  })
+
+  it('supports custom templatePath in render', () => {
+    const render = createRender()
+
+    expect(render.header({
+      templatePath: 'header.md.njk',
+      context: { version: '1.2.0' },
+    })).toContain('1.2.0')
+  })
+
+  it('renders section with custom template', () => {
+    const render = createRender()
+
+    expect(render.section({
+      title: 'My Section',
+      commits: [],
+    }, { template: 'SECTION {{section.title}}' })).toBe('SECTION My Section')
   })
 })
