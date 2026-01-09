@@ -6,8 +6,8 @@ import type {
 import { GitCommander } from '@modulify/git-toolkit'
 
 import Output from './lib/Output'
+import { ReleaseAdvisor } from '@modulify/conventional-bump'
 import { Runner } from '@modulify/git-toolkit/shell'
-import VersionGenerator from './lib/VersionGenerator'
 
 import chalk from 'chalk'
 
@@ -37,14 +37,14 @@ try {
     file: options.dry ? relative(cwd, 'CHANGELOG.md') : undefined,
   })
 
-  const generator = new VersionGenerator({
-    releaseAs: options.releaseAs,
-    prerelease: options.prerelease,
-  })
+  const advisor = new ReleaseAdvisor({ cwd })
 
   const root = read(cwd)
 
-  const nextRelease = await generator.next(root.manifest.version ?? '0.0.0')
+  const nextRelease = await advisor.next(root.manifest.version ?? '0.0.0', {
+    type: options.releaseAs,
+    prerelease: options.prerelease,
+  })
   const nextVersion = nextRelease.version
 
   if (nextVersion === null) {
