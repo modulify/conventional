@@ -66,10 +66,9 @@ describe('ReleaseAdvisor', () => {
     exec('git commit -m "feat: Added feature #4" --allow-empty --no-gpg-sign')
     exec('git commit -m "fix: Fixed issue #5" --allow-empty --no-gpg-sign')
 
-    const recommendation = await advisor.advise()
-
-    expect(recommendation).not.toBeNull()
-    expect(recommendation!.type).toBe('minor')
+    expect(await advisor.advise()).toEqual(
+      expect.objectContaining({ type: 'minor' })
+    )
   })
 
   it('creates release recommendation for breaking changes', async () => {
@@ -81,10 +80,9 @@ describe('ReleaseAdvisor', () => {
 
     exec('git commit -m "feat!: Added feature #3" --allow-empty --no-gpg-sign')
 
-    const recommendation = await advisor.advise()
-
-    expect(recommendation).not.toBeNull()
-    expect(recommendation!.type).toBe('major')
+    expect(await advisor.advise()).toEqual(
+      expect.objectContaining({ type: 'major' })
+    )
   })
 
   it('ignores reverted commits when creating recommendation', async () => {
@@ -96,10 +94,9 @@ describe('ReleaseAdvisor', () => {
     exec('git commit -m "feat: Added feature #A" --allow-empty --no-gpg-sign')
     exec(`git commit -m 'Revert "feat: Added feature #A"' -m 'This reverts commit ${lastHash()}.' --allow-empty --no-gpg-sign`)
 
-    const recommendation = await advisor.advise()
-
-    expect(recommendation).not.toBeNull()
-    expect(recommendation!.type).toBe('patch')
+    expect(await advisor.advise()).toEqual(
+      expect.objectContaining({ type: 'patch' })
+    )
   })
 
   it('restores feature after revert of revert', async () => {
@@ -116,10 +113,9 @@ describe('ReleaseAdvisor', () => {
 
     exec(`git commit -m 'Revert "Revert "feat: Added feature #B""' -m 'This reverts commit ${revertHash}.' --allow-empty --no-gpg-sign`)
 
-    const recommendation = await advisor.advise()
-
-    expect(recommendation).not.toBeNull()
-    expect(recommendation!.type).toBe('minor')
+    expect(await advisor.advise()).toEqual(
+      expect.objectContaining({ type: 'minor' })
+    )
   })
 
   it('handles multiple alternating reverts correctly', async () => {
@@ -139,9 +135,58 @@ describe('ReleaseAdvisor', () => {
 
     exec(`git commit --allow-empty --no-gpg-sign -m 'Revert "Revert "Revert "feat: Added feature #C"""' -m 'This reverts commit ${revert2Hash}.'`)
 
-    const recommendation = await advisor.advise()
+    expect(await advisor.advise()).toEqual(
+      expect.objectContaining({ type: 'patch' })
+    )
+  })
 
-    expect(recommendation).not.toBeNull()
-    expect(recommendation!.type).toBe('patch')
+  it('supports strict mode', async () => {
+    const advisor = new ReleaseAdvisor({ cwd })
+
+    exec('git commit -m "chore: some chore" --allow-empty --no-gpg-sign')
+
+    expect(await advisor.advise({ strict: true })).toBeNull()
+
+    exec('git commit -m "fix: some fix" --allow-empty --no-gpg-sign')
+
+    expect(await advisor.advise({ strict: true })).toEqual(
+      expect.objectContaining({ type: 'patch' })
+    )
+  })
+
+  it('supports preMajor mode', async () => {
+    const advisor = new ReleaseAdvisor({ cwd })
+
+    exec('git commit -m "feat: some feature" --allow-empty --no-gpg-sign')
+
+    expect(await advisor.advise({ preMajor: true })).toEqual(
+      expect.objectContaining({ type: 'patch' })
+    )
+
+    exec('git commit -m "feat!: breaking feature" --allow-empty --no-gpg-sign')
+
+    expect(await advisor.advise({ preMajor: true })).toEqual(
+      expect.objectContaining({ type: 'minor' })
+    )
+  })
+
+  it('supports custom hidden types in strict mode', async () => {
+    const advisor = new ReleaseAdvisor({
+      cwd,
+      types: [
+        { type: 'feat', section: 'Features' },
+        { type: 'custom', section: 'Custom', hidden: true },
+      ],
+    })
+
+    exec('git commit -m "custom: hidden change" --allow-empty --no-gpg-sign')
+
+    expect(await advisor.advise({ strict: true })).toBeNull()
+
+    exec('git commit -m "feat: visible change" --allow-empty --no-gpg-sign')
+
+    expect(await advisor.advise({ strict: true })).toEqual(
+      expect.objectContaining({ type: 'minor' })
+    )
   })
 })
