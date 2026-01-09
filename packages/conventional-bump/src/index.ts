@@ -152,7 +152,7 @@ export class ReleaseAdvisor {
     } : await this.advise({
       ignore: options.ignore,
       ignoreReverted: options.ignoreReverted,
-      preMajor: options.preMajor ?? semver.lt(version, '1.0.0', options.loose),
+      preMajor: options.preMajor ?? (semver.valid(version, options.loose) ? semver.lt(version, '1.0.0', options.loose) : false),
       strict: options.strict,
     })
 

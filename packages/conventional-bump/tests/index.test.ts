@@ -52,7 +52,8 @@ describe('ReleaseAdvisor', () => {
       if (!fs.readdirSync(__temporary).length) {
         fs.rmdirSync(__temporary)
       }
-    } catch { /* empty */ }
+    } catch { /* empty */
+    }
   })
 
   it('creates release recommendation', async () => {
@@ -188,5 +189,116 @@ describe('ReleaseAdvisor', () => {
     expect(await advisor.advise({ strict: true })).toEqual(
       expect.objectContaining({ type: 'minor' })
     )
+  })
+
+  describe('next', () => {
+    it('returns next version based on recommendation', async () => {
+      const advisor = new ReleaseAdvisor({ cwd })
+
+      exec('git commit -m "feat: some feature" --allow-empty --no-gpg-sign')
+
+      expect(await advisor.next('1.0.0')).toEqual({
+        type: 'minor',
+        version: '1.1.0',
+      })
+    })
+
+    it('supports forced version type', async () => {
+      const advisor = new ReleaseAdvisor({ cwd })
+
+      expect(await advisor.next('1.0.0', { type: 'major' })).toEqual({
+        type: 'major',
+        version: '2.0.0',
+      })
+    })
+
+    it('supports prerelease', async () => {
+      const advisor = new ReleaseAdvisor({ cwd })
+
+      exec('git commit -m "feat: some feature" --allow-empty --no-gpg-sign')
+
+      expect(await advisor.next('1.0.0', { prerelease: 'alpha' })).toEqual({
+        type: 'preminor',
+        version: '1.1.0-alpha.1',
+      })
+    })
+
+    it('handles prerelease to stable transition', async () => {
+      const advisor = new ReleaseAdvisor({ cwd })
+
+      exec('git commit -m "fix: some fix" --allow-empty --no-gpg-sign')
+
+      expect(await advisor.next('1.1.0-alpha.1', { prerelease: 'alpha' })).toEqual(
+        expect.objectContaining({ version: '1.1.0-alpha.2' })
+      )
+    })
+
+    it('handles major prerelease', async () => {
+      const advisor = new ReleaseAdvisor({ cwd })
+
+      exec('git commit -m "feat!: breaking" --allow-empty --no-gpg-sign')
+
+      expect(await advisor.next('1.0.0', { prerelease: 'beta' })).toEqual({
+        type: 'premajor',
+        version: '2.0.0-beta.1',
+      })
+    })
+
+    it('handles unknown recommendation', async () => {
+      const advisor = new ReleaseAdvisor({ cwd })
+
+      exec('git commit -m "chore: some chore" --allow-empty --no-gpg-sign')
+
+      expect(await advisor.next('1.0.0')).toEqual({
+        type: 'patch',
+        version: '1.0.1',
+      })
+    })
+
+    it('handles invalid version', async () => {
+      const advisor = new ReleaseAdvisor({ cwd })
+
+      exec('git commit -m "feat: some feature" --allow-empty --no-gpg-sign')
+
+      expect(await advisor.next('invalid-version')).toEqual(
+        expect.objectContaining({ version: 'invalid-version' })
+      )
+    })
+
+    it('uses loose semver if option provided', async () => {
+      const advisor = new ReleaseAdvisor({ cwd })
+
+      exec('git commit -m "feat: some feature" --allow-empty --no-gpg-sign')
+
+      expect(await advisor.next('v1.0.0', { loose: true })).toEqual(
+        expect.objectContaining({ version: '1.1.0' })
+      )
+    })
+
+    it('detects type of version, automatically calculates if it is pre-major', async () => {
+      const advisor = new ReleaseAdvisor({ cwd })
+
+      exec('git commit -m "feat: some feature" --allow-empty --no-gpg-sign')
+
+      expect(await advisor.next('1.1.0', { prerelease: 'alpha' })).toEqual({
+        type: 'preminor',
+        version: '1.2.0-alpha.1',
+      })
+
+      expect(await advisor.next('1.1.1', { prerelease: 'alpha' })).toEqual({
+        type: 'preminor',
+        version: '1.2.0-alpha.1',
+      })
+
+      expect(await advisor.next('0.0.1', { prerelease: 'alpha' })).toEqual({
+        type: 'prepatch',
+        version: '0.0.2-alpha.1',
+      })
+
+      expect(await advisor.next('0.1.0', { prerelease: 'alpha' })).toEqual({
+        type: 'prepatch',
+        version: '0.1.1-alpha.1',
+      })
+    })
   })
 })
