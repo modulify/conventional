@@ -1,8 +1,11 @@
 import type { Commit } from '@modulify/conventional-git/types/commit'
 import type { CommitMeta } from '@modulify/conventional-git/types/commit'
 import type { ParseOptions } from '@modulify/conventional-git/types/parse'
+import type { ReleaseType as SemverReleaseType } from 'semver'
 
 import { Client } from '@modulify/conventional-git'
+
+import semver from 'semver'
 
 export type CommitType = {
   type: string
@@ -36,10 +39,6 @@ const RELEASE_TYPES = [
   'minor',
   'patch',
 ] as const
-
-const reverts = (commit: Commit) => (revert: CommitMeta) => {
-  return revert.header === commit.header
-}
 
 /** Advisor that analyzes git history and recommends the next semantic version. */
 export class ReleaseAdvisor {
@@ -137,4 +136,80 @@ export class ReleaseAdvisor {
         : `There are ${breaking} BREAKING CHANGES and ${features} features`,
     }
   }
+
+  async next (version: string, options: {
+    type?: SemverReleaseType,
+    prerelease?: 'alpha' | 'beta' | 'rc',
+    ignore?: (commit: Commit) => boolean;
+    ignoreReverted?: boolean;
+    preMajor?: boolean;
+    strict?: boolean;
+    loose?: boolean;
+  } = {}) {
+    const recommendation = options.type ? {
+      type: options.type,
+      reason: '',
+    } : await this.advise({
+      ignore: options.ignore,
+      ignoreReverted: options.ignoreReverted,
+      preMajor: options.preMajor ?? semver.lt(version, '1.0.0', options.loose),
+      strict: options.strict,
+    })
+
+    const type = isKnown(recommendation?.type)
+      ? isStable(recommendation?.type) && options.prerelease
+        ? Array.isArray(semver.prerelease(version, {})) && isPrerelease(typeOf(version), recommendation?.type)
+          ? 'prerelease'
+          : ('pre' + recommendation?.type) as SemverReleaseType
+        : recommendation?.type
+      : recommendation?.type ?? 'unknown'
+
+    return {
+      type,
+      version: isKnown(type) && semver.valid(version, options.loose)
+        ? semver.inc(version, type, options.loose, options.prerelease, '1')
+        : version,
+    }
+  }
+}
+
+function isKnown(type: unknown): type is SemverReleaseType {
+  return semver.RELEASE_TYPES.includes(type as SemverReleaseType)
+}
+
+function isStable(type: SemverReleaseType): type is ReleaseType {
+  return !type.startsWith('pre')
+}
+
+function isPrerelease(current: SemverReleaseType, next: SemverReleaseType) {
+  return current === next || priorityOf(current) > priorityOf(next)
+}
+
+function reverts (commit: Commit) {
+  return (revert: CommitMeta) => revert.header === commit.header
+}
+
+function typeOf(version: string): ReleaseType {
+  switch (true) {
+    case semver.major(version) > 0: return 'major'
+    case semver.minor(version) > 0: return 'minor'
+    case semver.patch(version) > 0: return 'patch'
+  }
+
+  return 'patch'
+}
+
+function priorityOf(type: SemverReleaseType | undefined) {
+  return type
+    ? {
+      major: 2,
+      minor: 1,
+      patch: 0,
+      premajor: -1,
+      preminor: -1,
+      prepatch: -1,
+      prerelease: -1,
+      release: -1,
+    }[type] ?? -1
+    : -1
 }

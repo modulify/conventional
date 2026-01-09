@@ -18,15 +18,20 @@
   },
   "types": "dist/index.d.ts",
   "peerDependencies": {
-    "@types/node": ">=20"
+    "@types/node": ">=20",
+    "@types/semver": "^7.7.1"
   },
   "peerDependenciesMeta": {
     "@types/node": {
       "optional": true
+    },
+    "@types/semver": {
+      "optional": true
     }
   },
   "dependencies": {
-    "@modulify/conventional-git": "^0.0.0"
+    "@modulify/conventional-git": "^0.0.0",
+    "semver": "^7.7.3"
   },
   "devDependencies": {
     "@types/node": "^22.18.6",
