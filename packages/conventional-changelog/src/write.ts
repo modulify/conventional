@@ -13,7 +13,6 @@ import { readFileSync } from 'node:fs'
 import { writeFileSync } from 'node:fs'
 
 import { DEFAULT_COMMIT_TYPES } from '@modulify/conventional-bump'
-import * as console from "node:console";
 
 export interface RenderContext extends Omit<_RenderContext, 'sections' | 'highlights'> {
   [key: string]: unknown;

@@ -267,4 +267,54 @@ describe('write', () => {
     expect(result).toContain('## Features')
     expect(result).toContain('* Scoped feature')
   })
+
+  it('supports output to Writable stream', async () => {
+    exec('git commit -m "feat: Stream feature" --allow-empty --no-gpg-sign')
+
+    let data = ''
+    const stream = new (await import('node:stream')).Writable({
+      write(chunk, encoding, callback) {
+        data += chunk.toString()
+        callback()
+      },
+    })
+
+    const write = createWrite({
+      cwd,
+      types: [{ type: 'feat', section: 'Features' }],
+      output: stream,
+    })
+
+    await write('1.0.0')
+    expect(data).toContain('## 1.0.0')
+    expect(data).toContain('* Stream feature')
+  })
+
+  it('handles empty commit types and missing sections', async () => {
+    exec('git commit -m "feat: No section feature" --allow-empty --no-gpg-sign')
+
+    const write = createWrite({
+      cwd,
+      types: [],
+    })
+
+    const result = await write()
+    expect(result).toBe('## 0.0.0\n\n')
+  })
+
+  it('handles breaking changes and notes in changelog', async () => {
+    exec('git commit -m "feat: Breaking feature\n\nBREAKING CHANGE: this is breaking" --allow-empty --no-gpg-sign')
+    const hash = lastHash()
+
+    const write = createWrite({
+      cwd,
+      types: [{ type: 'feat', section: 'Features' }],
+    })
+
+    const result = await write('1.0.0')
+    expect(result).toContain('### ⚠ BREAKING CHANGE')
+    expect(result).toContain('this is breaking')
+    expect(result).toContain('([')
+    expect(result).toContain(shorten(hash, 7))
+  })
 })

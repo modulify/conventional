@@ -96,4 +96,12 @@ describe('render', () => {
       '* **routing:** Added navigation guards ([db05cd4](https://github.com/owner/repo/commit/db05cd487f476ec747be61bdcade04fc7fa2c38c))'
     )
   })
+
+  it('handles missing template in DynamicLoader', () => {
+    const render = createRender()
+
+    expect(() => render.header({
+      templatePath: 'non-existent.njk',
+    })).toThrow()
+  })
 })
