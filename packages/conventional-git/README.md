@@ -1,5 +1,7 @@
 # @modulify/conventional-git
 
+[🌐 Translations](./docs/INDEX.md)
+
 Thin wrapper over git that adds conventional-commit parsing and semantic tag helpers.
 
 - Repository: https://github.com/modulify/conventional
@@ -62,3 +64,4 @@ Methods:
 * `tags` – Streams semver tags. When `prefix` is provided, only tags with that prefix are considered.
   `skipUnstable` skips prereleases. With `clean: true`, the returned items are cleaned versions (e.g. `1.2.3`).
 * `version` – Returns the latest semantic version (sorted with semver) or `null` when no semver tag is found.
+* `url` – Returns the repository URL (from git remote). Default remote is `origin`.

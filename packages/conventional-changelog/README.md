@@ -1,7 +1,10 @@
 # @modulify/conventional-changelog
 
+[🌐 Translations](./docs/INDEX.md)
+
 Generate a changelog from your git history using conventional commits.
-Groups entries by sections you define and skips commits that were reverted later.
+Groups entries by sections you define and skips commits reverted later.
+Customizable with Nunjucks templates.
 
 - Repository: https://github.com/modulify/conventional
 - Spec: https://www.conventionalcommits.org/en/v1.0.0/
@@ -14,47 +17,69 @@ Groups entries by sections you define and skips commits that were reverted later
 
 ## Quick start
 
-```
-import { ChangelogWriter } from '@modulify/conventional-changelog'
+```ts
+import { createWrite } from '@modulify/conventional-changelog'
 
-const writer = new ChangelogWriter({
+const write = createWrite({
   types: [
     { type: 'feat', section: 'Features' },
     { type: 'fix', section: 'Bug Fixes' },
   ],
 })
 
-const content = await writer.write()
+const content = await write('1.0.0')
 console.log(content)
 ```
 
-You can also pass a Node.js Writable to stream the generated content:
+You can also write directly to a file, and it will prepend with a header:
 
-```
-import { createWriteStream } from 'node:fs'
+```ts
+const write = createWrite({
+  file: 'CHANGELOG.md',
+  header: '# My Changelog',
+})
 
-const out = createWriteStream('CHANGELOG.md')
-const writer = new ChangelogWriter({ output: out, types: [...] })
-await writer.write()
+await write('1.1.0')
 ```
 
 ## Public API
 
-### ChangelogWriter
+### createWrite
 
-Constructor:
+Factory function that creates a changelog writer.
 
-```
-new ChangelogWriter(options?: ChangelogOptions)
+```ts
+createWrite(options?: ChangelogOptions): (version?: string) => Promise<string>
 ```
 
-Method:
+#### ChangelogOptions
 
+- `cwd?: string` — Working directory for git commands.
+- `git?: Client` — Custom `@modulify/conventional-git` client.
+- `types?: CommitType[]` — Custom type-to-section mapping.
+- `header?: string` — Static header for the changelog file (default: `# Changelog`).
+- `context?: RenderContext` — Additional context for the template (host, owner, repository, etc).
+- `render?: RenderFunction` — Custom render function.
+- `file?: string` — Optional file path to write/prepend the changelog to.
+- `output?: Writable` — Optional Node.js Writable stream to write the changelog to.
+
+### createRender
+
+Creates a render function based on Nunjucks templates.
+
+```ts
+createRender(templatesPaths?: string | string[]): RenderFunction
 ```
-write(): Promise<string>
-```
+
+You can provide custom paths to your own `.njk` templates to override the default ones (`changelog.md.njk`, `commit.md.njk`, `header.md.njk`, `section.md.njk`).
+
+### createEnvironment
+
+Creates a Nunjucks environment with pre-configured filters (`forge`, `shorten`).
 
 Behavior highlights:
+
 - Groups commits into sections according to `types`.
-- Skips commits that were later reverted; revert-of-revert chains are handled so that original commits are restored.
-- When `output` is provided, the same content is written to the stream and also returned as a string.
+- Skips commits that were later reverted; revert-of-revert chains are handled.
+- Automatically detects repository URL from git remote to generate links for commits and issues (supports GitHub).
+- When `file` is provided, it prepends the new version to the existing file content, keeping the header at the top.

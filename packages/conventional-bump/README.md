@@ -1,5 +1,7 @@
 # @modulify/conventional-bump
 
+[🌐 Translations](./docs/INDEX.md)
+
 Semantic-release helper that analyzes conventional commits and recommends the next version (major/minor/patch)
 based on your git history.
 
@@ -33,6 +35,11 @@ if (recommendation) {
 - `type ReleaseType = 'major' | 'minor' | 'patch'`
 - `type ReleaseRecommendation = { type: ReleaseType; reason: string }`
 - `type CommitType = { type: string; section: string; hidden?: boolean }`
+
+### Constants
+
+- `DEFAULT_COMMIT_TYPES: CommitType[]`
+  - Default mapping of commit types to sections and visibility (feat, fix, perf, revert are visible; others are hidden).
 
 ### ReleaseAdvisor
 
