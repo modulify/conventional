@@ -206,9 +206,8 @@ describe('write', () => {
     })
 
     const result = await write()
-    const fileContent = fs.readFileSync(changelog, 'utf8')
 
-    expect(fileContent).toBe(
+    expect(fs.readFileSync(changelog, 'utf8')).toBe(
       '# My Custom Changelog\n\n' +
       result + '\n\n' +
       'Existing entry\n\n'
@@ -316,5 +315,115 @@ describe('write', () => {
     expect(result).toContain('this is breaking')
     expect(result).toContain('([')
     expect(result).toContain(shorten(hash, 7))
+  })
+
+  it('handles non-existent file correctly', async () => {
+    const changelog = join(cwd, 'NEW_CHANGELOG.md')
+    exec('git commit -m "feat: New file feature" --allow-empty --no-gpg-sign')
+
+    const write = createWrite({
+      cwd,
+      types: [{ type: 'feat', section: 'Features' }],
+      file: changelog,
+    })
+
+    const result = await write()
+    expect(fs.existsSync(changelog)).toBe(true)
+    expect(fs.readFileSync(changelog, 'utf8')).toContain(result)
+  })
+
+  it('handles empty file correctly', async () => {
+    const changelog = join(cwd, 'EMPTY_CHANGELOG.md')
+    fs.writeFileSync(changelog, '')
+    exec('git commit -m "feat: Empty file feature" --allow-empty --no-gpg-sign')
+
+    const write = createWrite({
+      cwd,
+      types: [{ type: 'feat', section: 'Features' }],
+      file: changelog,
+    })
+
+    const result = await write()
+    expect(fs.readFileSync(changelog, 'utf8')).toBe('# Changelog\n\n' + result + '\n\n')
+  })
+
+  it('handles file with only spaces correctly', async () => {
+    const changelog = join(cwd, 'SPACES_CHANGELOG.md')
+    fs.writeFileSync(changelog, '   \n\n   ')
+    exec('git commit -m "feat: Spaces file feature" --allow-empty --no-gpg-sign')
+
+    const write = createWrite({
+      cwd,
+      types: [{ type: 'feat', section: 'Features' }],
+      file: changelog,
+    })
+
+    const result = await write()
+    expect(fs.readFileSync(changelog, 'utf8')).toBe('# Changelog\n\n' + result + '\n\n')
+  })
+
+  it('handles file without header correctly', async () => {
+    const changelog = join(cwd, 'NO_HEADER_CHANGELOG.md')
+    fs.writeFileSync(changelog, 'Some Content\n')
+    exec('git commit -m "feat: No header feature" --allow-empty --no-gpg-sign')
+
+    const write = createWrite({
+      cwd,
+      types: [{ type: 'feat', section: 'Features' }],
+      file: changelog,
+    })
+
+    const result = await write()
+    expect(fs.readFileSync(changelog, 'utf8')).toBe(
+      '# Changelog\n\n' +
+      result + '\n\n' +
+      'Some Content\n\n'
+    )
+  })
+
+  it('throws error on stream write failure', async () => {
+    exec('git commit -m "feat: Commit for error test" --allow-empty --no-gpg-sign')
+
+    const stream = new (await import('node:stream')).Writable({
+      write(chunk, encoding, callback) {
+        callback(new Error('Write failed'))
+      },
+    })
+    stream.on('error', () => { /* ignore to avoid unhandled error in vitest */ })
+
+    const write = createWrite({
+      cwd,
+      output: stream,
+    })
+
+    await expect(write()).rejects.toThrow('Write failed')
+  })
+
+  it('handles write error to a directory', async () => {
+    const dir = join(cwd, 'some_dir')
+    fs.mkdirSync(dir)
+    exec('git commit -m "feat: Dir error test" --allow-empty --no-gpg-sign')
+
+    const write = createWrite({
+      cwd,
+      file: dir,
+    })
+
+    await expect(write()).rejects.toThrow('EISDIR')
+  })
+
+  it('handles multiple breaking changes correctly', async () => {
+    exec('git commit -m "feat: feat 1\n\nBREAKING CHANGE: breaking 1" --allow-empty --no-gpg-sign')
+    exec('git commit -m "feat: feat 2\n\nBREAKING CHANGE: breaking 2" --allow-empty --no-gpg-sign')
+
+    const write = createWrite({
+      cwd,
+      types: [{ type: 'feat', section: 'Features' }],
+    })
+
+    const result = await write()
+    expect(result).toContain('### ⚠ BREAKING CHANGE')
+    expect(result).toContain('breaking 1')
+    expect(result).toContain('breaking 2')
   })
 })

@@ -8,9 +8,7 @@ import { Client } from '@modulify/conventional-git'
 import { Writable } from 'node:stream'
 
 import { createRender } from './render'
-import { existsSync } from 'node:fs'
-import { readFileSync } from 'node:fs'
-import { writeFileSync } from 'node:fs'
+import { createFileWritable } from './output'
 
 import { DEFAULT_COMMIT_TYPES } from '@modulify/conventional-bump'
 
@@ -57,8 +55,8 @@ const MATCH_REPOSITORY_URL = /^(?:https?:\/\/|git@)([^:/]+)[:/]([^/]+)\/([^/.]+)
 export const createWrite = (options: ChangelogOptions = {}) => {
   const git = options.git ?? new Client({ cwd: options.cwd })
   const types = options.types ?? DEFAULT_COMMIT_TYPES
-  const output = options.output
   const header = options.header ?? '# Changelog'
+  const output = options.output ?? (options.file ? createFileWritable(options.file, header) : undefined)
   const render = options.render ?? createRender()
 
   return async (version: string = '0.0.0') => {
@@ -115,19 +113,27 @@ export const createWrite = (options: ChangelogOptions = {}) => {
     })
 
     if (output) {
-      output.write(changes)
-    }
+      await new Promise<void>((resolve, reject) => {
+        let finished = false
 
-    if (options.file) {
-      const content = existsSync(options.file) ? readFileSync(options.file, 'utf8') : ''
+        const fulfill = (e?: unknown) => e ? reject(e) : resolve()
+        const done = (e?: unknown) => {
+          if (finished) return
+          finished = true
+          output.off('error', done)
+          fulfill(e)
+        }
 
-      writeFileSync(options.file, [
-        header,
-        changes,
-        content.startsWith(header)
-          ? content.slice(header.length)
-          : content,
-      ].map(p => p.trim()).filter(Boolean).join('\n\n') + '\n\n')
+        output.on('error', done)
+        output.write(changes, (e) => {
+          if (e) return done(e)
+          if (options.file && !options.output) {
+            output.end(done)
+          } else {
+            done()
+          }
+        })
+      })
     }
 
     return changes
