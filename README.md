@@ -1,6 +1,6 @@
 # Conventional commits toolkit
 
-[🌐 Translations](./docs/INDEX.md)
+[🌐 Translations](./docs/INDEX.md#readme) • [📜 Code of Conduct](./CODE_OF_CONDUCT.md)
 
 Tools for analyzing git history and creating new releases according to [conventional commits specification](https://www.conventionalcommits.org/en/v1.0.0/).
 

@@ -1,5 +1,7 @@
 # Contributor Covenant Code of Conduct
 
+[🌐 Translations](./docs/INDEX.md#code-of-conduct)
+
 ## Our Pledge
 
 We as members, contributors, and leaders pledge to make participation in our

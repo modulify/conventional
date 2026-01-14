@@ -1,5 +1,7 @@
 # Conventional commits toolkit
 
+[🌐 Translations](../../docs/INDEX.md#readme)
+
 Набор инструментов для анализа истории git и создания новых релизов в соответствии со [спецификацией conventional commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 [![Tests Status](https://github.com/modulify/conventional/actions/workflows/tests.yml/badge.svg)](https://github.com/modulify/conventional/actions)
