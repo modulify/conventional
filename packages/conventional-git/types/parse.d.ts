@@ -1,22 +1,47 @@
-export interface ParseOptions {
+import type {
+  CommitRecord,
+  CommitRevert,
+  CommitValue,
+} from './commit'
+
+export type ManageableField =
+  | 'type'
+  | 'scope'
+  | 'subject'
+  | 'merge'
+  | 'header'
+  | 'body'
+  | 'footer'
+
+export interface MergeParseResult<TMeta extends CommitRecord = CommitRecord> {
+  merge?: string;
+  manageable?: Partial<Record<ManageableField, CommitValue>>;
+  meta?: Partial<TMeta>;
+}
+
+export type MergeParser<TMeta extends CommitRecord = CommitRecord> = (line: string) => MergeParseResult<TMeta> | null
+export type RevertParser<TRevert extends CommitRecord = CommitRevert> = (input: string) => TRevert | null
+
+export type FieldParseResult<TFields extends CommitRecord = CommitRecord> =
+  | { target: 'none' }
+  | { target: 'manageable'; key: ManageableField }
+  | { target: 'field'; key: keyof TFields & string }
+
+export type FieldParser<TFields extends CommitRecord = CommitRecord> = (line: string) => FieldParseResult<TFields> | null
+
+export interface ParseOptions<
+  TRevert extends CommitRecord = CommitRevert,
+  TFields extends CommitRecord = CommitRecord,
+  TMeta extends CommitRecord = CommitRecord,
+> {
   /** Character used to comment out a line. */
   commentChar?: string;
-  /**
-   * Pattern to match merge headers. EG: branch merge, GitHub or GitLab like pull requests headers.
-   * When a merge header is parsed, the next line is used for conventional header parsing.
-   */
-  mergePattern?: RegExp;
-  /** Used to define what capturing group of `mergePattern`. */
-  mergeCorrespondence?: string[];
-  /** Pattern to match what this commit reverts. */
-  revertPattern?: RegExp;
-  /**
-   * Used to define what a capturing group of `revertPattern` captures what reverted commit fields.
-   * The order of the array should correspond to the order of `revertPattern`'s capturing group.
-   */
-  revertCorrespondence?: string[]
-  /** Pattern to match other fields. */
-  fieldPattern?: RegExp
+  /** Custom parser for merge headers. */
+  mergeParser?: MergeParser<TMeta>;
+  /** Custom parser for revert metadata. */
+  revertParser?: RevertParser<TRevert>;
+  /** Custom parser for extra fields. */
+  fieldParser?: FieldParser<TFields>;
   /** The prefixes of an issue. EG: In `gh-123` `gh-` is the prefix. */
   issuePrefixes?: string[]
   /** Used to define if `issuePrefixes` should be considered case-sensitive. */
@@ -30,9 +55,7 @@ export interface ParseOptions {
 }
 
 export interface ParsePatterns {
-  fields: RegExp;
   mentions: RegExp;
-  merge: RegExp;
   notes: RegExp;
   references: RegExp;
   referencesParts: RegExp;

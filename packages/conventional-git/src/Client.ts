@@ -1,4 +1,9 @@
 import type { GitLogOptions } from '@modulify/git-toolkit/types/git'
+import type {
+  Commit,
+  CommitRecord,
+  CommitRevert,
+} from '~types/commit'
 import type { ParseOptions } from '~types/parse'
 
 import { AsyncStream } from '@modulify/git-toolkit/stream'
@@ -22,7 +27,14 @@ export function packagePrefix(packageName?: string) {
 export interface CommitStreamOptions extends GitLogOptions {
   /** Pattern to filter commits. */
   ignore?: RegExp;
-  parse?: ParseOptions;
+}
+
+export interface CommitStreamParseOptions<
+  TRevert extends CommitRecord = CommitRevert,
+  TFields extends CommitRecord = CommitRecord,
+  TMeta extends CommitRecord = CommitRecord,
+> extends CommitStreamOptions {
+  parse?: ParseOptions<TRevert, TFields, TMeta>;
 }
 
 export interface TagStreamOptions {
@@ -60,12 +72,16 @@ export class Client {
    * Get parsed commits stream.
    * @yields Parsed commits data.
    */
-  commits (options: CommitStreamOptions = {}) {
+  commits<
+    TRevert extends CommitRecord = CommitRevert,
+    TFields extends CommitRecord = CommitRecord,
+    TMeta extends CommitRecord = CommitRecord,
+  > (options: CommitStreamParseOptions<TRevert, TFields, TMeta> = {}) {
     return this._git.commits({
       ...options,
       format: `%H%n${options.format ?? '%B'}`,
       parser: createParser(options.parse ?? {}),
-    })
+    }) as AsyncStream<Commit<TRevert, TFields, TMeta>>
   }
 
   /**

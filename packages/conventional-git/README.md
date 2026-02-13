@@ -42,12 +42,46 @@ for await (const t of git.tags({ prefix, clean: true })) {
 }
 ```
 
+## Parser customization
+
+`createParser` and default parser building blocks are exported from the package root.
+This allows parser decoration without reimplementing the default behavior.
+
+```ts
+import {
+  createParser,
+  defaultRevertParser,
+} from '@modulify/conventional-git'
+
+const parse = createParser({
+  revertParser: (input) => {
+    const parsed = defaultRevertParser(input)
+    if (!parsed) {
+      return null
+    }
+
+    return {
+      ...parsed,
+      hash: parsed.hash?.toLowerCase() ?? null,
+    }
+  },
+})
+```
+
 ## Public API
 
 ### Functions
 
 - `packagePrefix(packageName?: string): string | RegExp`
   - Returns a prefix for package-specific semver tags. If no name is provided, returns a RegExp that matches any `<name>@` prefix.
+- `createParser(options?)`
+  - Creates a conventional commit parser with flat parser options (`mergeParser`, `revertParser`, `fieldParser`).
+- `createRegexMergeParser(pattern, map)`
+- `createRegexRevertParser(pattern, map)`
+- `createRegexFieldParser(pattern)`
+- `defaultMergeParser`
+- `defaultRevertParser`
+- `defaultFieldParser`
 
 ### Client
 

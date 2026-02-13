@@ -4,7 +4,12 @@ import {
   it,
 } from 'vitest'
 
-import { createParser } from '@/parse'
+import {
+  createParser,
+  createRegexFieldParser,
+  createRegexMergeParser,
+  createRegexRevertParser,
+} from '@/parse'
 
 describe('parse', () => {
   describe('defaults', () => {
@@ -196,10 +201,16 @@ describe('parse', () => {
   })
 
   describe('options', () => {
-    it('should support mergePattern with manageable fields', () => {
+    it('should support custom merge parser with manageable fields', () => {
       const parse = createParser({
-        mergePattern: /^Merge branch '([\w-]+)' into ([\w-]+)/,
-        mergeCorrespondence: ['branch', 'body'],
+        mergeParser: createRegexMergeParser(/^Merge branch '([\w-]+)' into ([\w-]+)/, matches => ({
+          meta: {
+            branch: matches[1] ?? null,
+          },
+          manageable: {
+            body: matches[2] ?? null,
+          },
+        })),
       })
 
       const commit = parse('Merge branch \'feature-branch\' into main\n\nfeat: some feature')
@@ -209,9 +220,11 @@ describe('parse', () => {
       expect(commit.body).toContain('main')
     })
 
-    it('should support custom fieldPattern with manageable fields', () => {
-      const parse = createParser({ fieldPattern: /^-(.*?)-$/ })
-      const commit = parse('feat: subject\n\n-body-\nCustom body')
+    it('should support custom field parser with manageable fields', () => {
+      const parse = createParser({
+        fieldParser: createRegexFieldParser(/^::(.*?)::$/),
+      })
+      const commit = parse('feat: subject\n\n::body::\nCustom body')
 
       expect(commit.body).toBe('Custom body')
     })
@@ -364,10 +377,13 @@ describe('parse', () => {
       expect(commit.references[0].issue).toBe('123')
     })
 
-    it('should handle merge commits with correspondence that are not manageable', () => {
+    it('should handle merge commits with parser metadata', () => {
       const parse = createParser({
-        mergePattern: /^Merge branch '([\w-]+)'/,
-        mergeCorrespondence: ['nonManageable'],
+        mergeParser: createRegexMergeParser(/^Merge branch '([\w-]+)'/, matches => ({
+          meta: {
+            nonManageable: matches[1] ?? null,
+          },
+        })),
       })
 
       const commit = parse('Merge branch \'feature\'\nheader')
@@ -375,10 +391,9 @@ describe('parse', () => {
       expect(commit.meta.nonManageable).toBe('feature')
     })
 
-    it('should fallback to default merge correspondence when undefined is passed', () => {
+    it('should support merge parser without explicit mappings', () => {
       const parse = createParser({
-        mergePattern: /^Merge branch '([\w-]+)'/,
-        mergeCorrespondence: undefined,
+        mergeParser: createRegexMergeParser(/^Merge branch '([\w-]+)'/, () => ({})),
       })
 
       const commit = parse('Merge branch \'feature\'\nfeat: subject')
@@ -387,15 +402,44 @@ describe('parse', () => {
       expect(commit.meta).toEqual({})
     })
 
-    it('should handle merge correspondence with missing captured values', () => {
+    it('should handle merge parser with missing captured values', () => {
       const parse = createParser({
-        mergePattern: /^Merge branch/,
-        mergeCorrespondence: ['nonManageable'],
+        mergeParser: createRegexMergeParser(/^Merge branch/, matches => ({
+          meta: {
+            nonManageable: matches[1] ?? null,
+          },
+        })),
       })
 
       const commit = parse('Merge branch\nfeat: subject')
 
       expect(commit.meta.nonManageable).toBeNull()
+    })
+
+    it('should return null from regex merge parser when input does not match', () => {
+      const parser = createRegexMergeParser(/^Merge branch '([\w-]+)'/, matches => ({
+        meta: {
+          branch: matches[1] ?? null,
+        },
+      }))
+
+      expect(parser('feat: subject')).toBeNull()
+    })
+
+    it('should ignore non-manageable keys and normalize undefined manageable values', () => {
+      const parse = createParser({
+        mergeParser: () => ({
+          manageable: {
+            invalid: 'x',
+            body: undefined,
+          } as unknown as Record<string, string | null>,
+        }),
+      })
+
+      const commit = parse('Merge branch\nfeat: subject')
+
+      expect(commit.body).toBeNull()
+      expect((commit as unknown as Record<string, unknown>).invalid).toBeUndefined()
     })
 
     it('should handle parseReference returning null for malformed reference', () => {
@@ -422,10 +466,11 @@ describe('parse', () => {
       }])
     })
 
-    it('should handle parseRevert with missing correspondence fields', () => {
+    it('should handle custom revert parser', () => {
       const parse = createParser({
-        revertPattern: /^Revert (.*)/,
-        revertCorrespondence: ['customField'],
+        revertParser: createRegexRevertParser(/^Revert (.*)/, matches => ({
+          customField: matches[1] ?? null,
+        })),
       })
 
       const commit = parse('Revert some subject')
@@ -433,10 +478,12 @@ describe('parse', () => {
       expect(commit.revert?.customField).toBe('some subject')
     })
 
-    it('should fill missing revert correspondence with null', () => {
+    it('should fill missing revert parser fields with null', () => {
       const parse = createParser({
-        revertPattern: /^Revert (.*)/,
-        revertCorrespondence: ['first', 'second'],
+        revertParser: createRegexRevertParser(/^Revert (.*)/, matches => ({
+          first: matches[1] ?? null,
+          second: matches[2] ?? null,
+        })),
       })
 
       const commit = parse('Revert subject')
@@ -447,15 +494,27 @@ describe('parse', () => {
       })
     })
 
-    it('should fallback to default revert correspondence when undefined is passed', () => {
+    it('should fallback to default revert parser when undefined is passed', () => {
       const parse = createParser({
-        revertPattern: /^Revert (.*)/,
-        revertCorrespondence: undefined,
+        revertParser: undefined,
       })
 
-      const commit = parse('Revert subject')
+      const commit = parse('Revert "subject"\n\nThis reverts commit 1234567.')
 
-      expect(commit.revert).toEqual({})
+      expect(commit.revert).toEqual({
+        header: 'subject',
+        hash: '1234567',
+      })
+    })
+
+    it('should normalize empty default revert groups to null', () => {
+      const parse = createParser()
+      const commit = parse('Revert ""\n\nThis reverts commit .')
+
+      expect(commit.revert).toEqual({
+        header: null,
+        hash: null,
+      })
     })
 
     it('should keep type null when header type is empty', () => {
@@ -476,7 +535,7 @@ describe('parse', () => {
 
     it('should handle field pattern without capturing group', () => {
       const parse = createParser({
-        fieldPattern: /^-field-$/,
+        fieldParser: createRegexFieldParser(/^-field-$/),
       })
 
       const commit = parse('feat: subject\n\n-field-\nvalue')

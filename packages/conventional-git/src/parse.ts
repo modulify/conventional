@@ -1,29 +1,33 @@
-import {
+import type {
   Commit,
-  CommitMeta,
   CommitNote,
+  CommitRecord,
   CommitReference,
+  CommitRevert,
 } from '~types/commit'
 
 import type {
+  FieldParseResult,
+  FieldParser,
+  ManageableField,
+  MergeParser,
+  MergeParseResult,
   ParseOptions,
   ParsePatterns,
+  RevertParser,
 } from '~types/parse'
 
 const MATCH_HASH = /^[0-9a-fA-F]{7,64}$/
 const MATCH_HEADER = /^(\w*)(?:\(([\w@$.\-*/ ]*)\))?(!)?: (.*)$/
-const MATCH_URL = /\b(?:https?):\/\/(?:www\.)?([-a-zA-Z0-9@:%_+.~#?&//=])+\b/
+const MATCH_URL = /\b(?:https?):\/\/(?:www\.)?[-a-zA-Z0-9@:%_+.~#?&//=]+\b/g
 
 const MATCH_EVERYTHING = /()(.+)/gi
 const MATCH_NOTHING = /(?!.*)/
+const MATCH_FIELD = /^-(.*?)-$/
+const MATCH_REVERT = /^Revert\s"([\s\S]*)"\s*This reverts commit (\w*)\./
 
-export const DEFAULTS: Required<ParseOptions> = {
-  mergePattern: MATCH_NOTHING,
-  mergeCorrespondence: [],
-  revertPattern: /^Revert\s"([\s\S]*)"\s*This reverts commit (\w*)\./,
-  revertCorrespondence: ['header', 'hash'],
+export const DEFAULTS = {
   commentChar: '',
-  fieldPattern: /^-(.*?)-$/,
   notesPattern: (text: string): RegExp => new RegExp(`^[\\s|*]*(${text})[:\\s]+(.*)`, 'i'),
   notesKeywords: ['BREAKING CHANGE', 'BREAKING-CHANGE'],
   issuePrefixes: ['#'],
@@ -41,13 +45,34 @@ export const DEFAULTS: Required<ParseOptions> = {
   ],
 }
 
-export function createParser (options: ParseOptions = {}) {
-  const _options = { ...DEFAULTS, ...options } as Required<ParseOptions>
-  const patterns = createPatterns(_options)
+export const defaultMergeParser: MergeParser = () => null
+export const defaultRevertParser: RevertParser<CommitRevert> = createRegexRevertParser(MATCH_REVERT, matches => ({
+  header: matches[1] || null,
+  hash: matches[2] || null,
+}))
+export const defaultFieldParser = createRegexFieldParser(MATCH_FIELD)
 
-  return (raw: string): Commit => {
-    const commit = createCommit()
-    const lines = linesOf(raw, _options)
+export function createParser<
+  TRevert extends CommitRecord = CommitRevert,
+  TFields extends CommitRecord = CommitRecord,
+  TMeta extends CommitRecord = CommitRecord,
+> (options: ParseOptions<TRevert, TFields, TMeta> = {}) {
+  const parseOptions = {
+    commentChar: options.commentChar ?? DEFAULTS.commentChar,
+    notesPattern: options.notesPattern ?? DEFAULTS.notesPattern,
+    notesKeywords: options.notesKeywords ?? DEFAULTS.notesKeywords,
+    issuePrefixes: options.issuePrefixes ?? DEFAULTS.issuePrefixes,
+    issuePrefixesCaseSensitive: options.issuePrefixesCaseSensitive ?? DEFAULTS.issuePrefixesCaseSensitive,
+    referenceActions: options.referenceActions ?? DEFAULTS.referenceActions,
+  }
+  const mergeParser = options.mergeParser ?? defaultMergeParser as MergeParser<TMeta>
+  const revertParser = options.revertParser ?? defaultRevertParser as unknown as RevertParser<TRevert>
+  const fieldParser = options.fieldParser ?? defaultFieldParser as FieldParser<TFields>
+  const patterns = createPatterns(parseOptions)
+
+  return (raw: string): Commit<TRevert, TFields, TMeta> => {
+    const commit = createCommit<TRevert, TFields, TMeta>()
+    const lines = linesOf(raw, parseOptions.commentChar)
 
     if (lines.length > 0 && MATCH_HASH.test(lines[0])) {
       commit.hash = lines.shift()!
@@ -55,7 +80,7 @@ export function createParser (options: ParseOptions = {}) {
 
     const content = { lines, cursor: 0 }
 
-    parseMerge(commit, content, patterns, _options.mergeCorrespondence)
+    parseMerge(commit, content, mergeParser)
     parseHeader(commit, content)
 
     if (commit.header) commit.references = parseReferences(commit.header, patterns)
@@ -65,9 +90,9 @@ export function createParser (options: ParseOptions = {}) {
     let parsingBody = true
 
     while (content.cursor < content.lines.length) {
-      parseMeta(commit, content, patterns)
+      parseMeta(commit, content, fieldParser)
 
-      if (parseNotes(commit, content, patterns)) {
+      if (parseNotes(commit, content, patterns, fieldParser)) {
         parsingBody = false
       }
 
@@ -89,7 +114,7 @@ export function createParser (options: ParseOptions = {}) {
 
     headless.forEach(line => commit.mentions.push(...parseMentions(line, patterns)))
 
-    commit.revert = parseRevert(lines.join('\n'), _options.revertPattern, _options.revertCorrespondence)
+    commit.revert = revertParser(lines.join('\n'))
 
     if (commit.body) commit.body = trimLineBreaks(commit.body)
     if (commit.footer) commit.footer = trimLineBreaks(commit.footer)
@@ -105,7 +130,11 @@ type Content = {
   cursor: number;
 }
 
-function createCommit (): Commit {
+function createCommit<
+  TRevert extends CommitRecord,
+  TFields extends CommitRecord,
+  TMeta extends CommitRecord,
+> (): Commit<TRevert, TFields, TMeta> {
   return {
     hash: null,
     type: null,
@@ -119,20 +148,24 @@ function createCommit (): Commit {
     notes: [],
     mentions: [],
     references: [],
-    fields: {},
-    meta: {},
+    fields: {} as TFields,
+    meta: {} as TMeta,
   }
 }
 
-function createPatterns (options: Required<ParseOptions>): ParsePatterns {
-  const issuePrefixes = join(options.issuePrefixes, '|')
-  const notesKeywords = join(options.notesKeywords, '|')
-  const referenceActions = join(options.referenceActions, '|')
+function createPatterns (options: {
+  issuePrefixes: string[];
+  issuePrefixesCaseSensitive: boolean;
+  notesKeywords: string[];
+  notesPattern: (text: string) => RegExp;
+  referenceActions: string[];
+}): ParsePatterns {
+  const issuePrefixes = joinPatterns(options.issuePrefixes)
+  const notesKeywords = joinPatterns(options.notesKeywords)
+  const referenceActions = joinPatterns(options.referenceActions)
 
   return {
-    fields: options.fieldPattern,
     mentions: /@([\w-]+)/g,
-    merge: options.mergePattern,
     notes: notesKeywords ? options.notesPattern(notesKeywords) : MATCH_NOTHING,
     references: referenceActions
       ? new RegExp(`(${referenceActions})(?:\\s+(.*?))(?=(?:${referenceActions})|$)`, 'gi')
@@ -143,22 +176,13 @@ function createPatterns (options: Required<ParseOptions>): ParsePatterns {
   }
 }
 
-function linesOf (raw: string, options: Required<ParseOptions>) {
+function linesOf (raw: string, commentChar: string) {
   return trimLineBreaks(raw).split(/\r?\n/).filter(line => {
-    return !line.match(/^\s*gpg:/) && !(options.commentChar && line.charAt(0) === options.commentChar)
+    return !line.match(/^\s*gpg:/) && !(commentChar && line.charAt(0) === commentChar)
   })
 }
 
-type Manageable =
-  | 'type'
-  | 'scope'
-  | 'subject'
-  | 'merge'
-  | 'header'
-  | 'body'
-  | 'footer'
-
-const isManageable = (key: string): key is Manageable => [
+const isManageable = (key: string): key is ManageableField => [
   'type',
   'scope',
   'subject',
@@ -168,21 +192,30 @@ const isManageable = (key: string): key is Manageable => [
   'footer',
 ].includes(key)
 
-function parseMerge (commit: Commit, content: Content, patterns: ParsePatterns, correspondence: string[] = []) {
+function parseMerge<
+  TRevert extends CommitRecord,
+  TFields extends CommitRecord,
+  TMeta extends CommitRecord,
+> (
+  commit: Commit<TRevert, TFields, TMeta>,
+  content: Content,
+  parser: MergeParser<TMeta>
+) {
   const line = content.lines[content.cursor]
-  const matches = line ? line.match(patterns.merge) : null
+  const parsed = line ? parser(line) : null
 
-  if (matches) {
-    commit.merge = matches[0]
+  if (parsed) {
+    commit.merge = parsed.merge ?? line
 
-    correspondence.forEach((key, index) => {
-      const value = matches[index + 1] ?? null
+    for (const [key, value] of Object.entries(parsed.manageable ?? {})) {
       if (isManageable(key)) {
-        commit[key] = value
-      } else {
-        commit.meta[key] = value
+        commit[key] = value ?? null
       }
-    })
+    }
+
+    for (const [key, value] of Object.entries(parsed.meta ?? {}) as Array<[keyof TMeta & string, string | null | undefined]>) {
+      (commit.meta as CommitRecord)[key] = value ?? null
+    }
 
     content.cursor++
 
@@ -192,7 +225,11 @@ function parseMerge (commit: Commit, content: Content, patterns: ParsePatterns, 
   }
 }
 
-function parseHeader (commit: Commit, content: Content) {
+function parseHeader<
+  TRevert extends CommitRecord,
+  TFields extends CommitRecord,
+  TMeta extends CommitRecord,
+> (commit: Commit<TRevert, TFields, TMeta>, content: Content) {
   const header = commit.header ?? content.lines[content.cursor++] ?? null
   if (header) {
     commit.header = header
@@ -210,11 +247,8 @@ function parseHeader (commit: Commit, content: Content) {
 }
 
 function parseReference (input: string, action: string | null, patterns: ParsePatterns) {
-  if (MATCH_URL.test(input)) {
-    return null
-  }
-
-  const matches = patterns.referencesParts.exec(input)
+  const sanitized = input.replace(MATCH_URL, ' ')
+  const matches = patterns.referencesParts.exec(sanitized)
   if (!matches) {
     return null
   }
@@ -275,18 +309,25 @@ function parseReferences (input: string, patterns: ParsePatterns) {
   return references
 }
 
-function parseMeta (commit: Commit, content: Content, patterns: ParsePatterns) {
-  let field: string | null = null
-  let matches: RegExpMatchArray | null
+function parseMeta<
+  TRevert extends CommitRecord,
+  TFields extends CommitRecord,
+  TMeta extends CommitRecord,
+> (
+  commit: Commit<TRevert, TFields, TMeta>,
+  content: Content,
+  parser: FieldParser<TFields>
+) {
+  let field: FieldParseResult<TFields> | null = null
   let parsed = false
   let line = ''
 
   while (content.cursor < content.lines.length) {
     line = content.lines[content.cursor]
-    matches = line.match(patterns.fields)
+    const token = parser(line)
 
-    if (matches) {
-      field = matches[1] ?? null
+    if (token) {
+      field = token.target === 'none' ? null : token
       content.cursor++
       continue
     }
@@ -294,10 +335,13 @@ function parseMeta (commit: Commit, content: Content, patterns: ParsePatterns) {
     if (field) {
       parsed = true
 
-      if (isManageable(field)) {
-        commit[field] = appendLine(commit[field], line)
+      if (field.target === 'manageable') {
+        const key = field.key
+        commit[key] = appendLine(commit[key], line)
       } else {
-        commit.fields[field] = appendLine(commit.fields[field], line)
+        const key = field.key
+        const fields = commit.fields as CommitRecord
+        fields[key] = appendLine(fields[key], line)
       }
 
       content.cursor++
@@ -309,7 +353,16 @@ function parseMeta (commit: Commit, content: Content, patterns: ParsePatterns) {
   return parsed
 }
 
-function parseNotes (commit: Commit, content: Content, patterns: ParsePatterns) {
+function parseNotes<
+  TRevert extends CommitRecord,
+  TFields extends CommitRecord,
+  TMeta extends CommitRecord,
+> (
+  commit: Commit<TRevert, TFields, TMeta>,
+  content: Content,
+  patterns: ParsePatterns,
+  parser: FieldParser<TFields>
+) {
   if (content.cursor >= content.lines.length) return false
 
   let line = content.lines[content.cursor]
@@ -327,8 +380,8 @@ function parseNotes (commit: Commit, content: Content, patterns: ParsePatterns) 
     content.cursor++
 
     while (content.cursor < content.lines.length) {
-      if (parseMeta(commit, content, patterns)) return true
-      if (parseNotes(commit, content, patterns)) return true
+      if (parseMeta(commit, content, parser)) return true
+      if (parseNotes(commit, content, patterns, parser)) return true
 
       line = content.lines[content.cursor]
       references = parseReferences(line, patterns)
@@ -364,28 +417,16 @@ function parseMentions (input: string, patterns: ParsePatterns) {
   return mentions
 }
 
-function parseRevert (input: string, pattern: RegExp, correspondence: string[] = []) {
-  const matches = input.match(pattern)
-  if (matches) {
-    return correspondence.reduce<CommitMeta>((meta, key, index) => {
-      meta[key] = matches[index + 1] || null
-
-      return meta
-    }, {})
-  }
-
-  return null
-}
-
-function appendLine (src: string | null, line: string) {
+function appendLine (src: string | null | undefined, line: string) {
   return src ? `${src}\n${line}` : line
 }
 
-function join (parts: string[], separator: string) {
+function joinPatterns (parts: string[]) {
   return parts
     .map(v => v.trim())
     .filter(Boolean)
-    .join(separator)
+    .map(escapeRegExp)
+    .join('|')
 }
 
 function trimLineBreaks (text: string) {
@@ -400,4 +441,59 @@ function trimLineBreaks (text: string) {
   }
 
   return text.substring(matches.index, end + 1)
+}
+
+function escapeRegExp (value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+export function createRegexMergeParser<TMeta extends CommitRecord = CommitRecord> (
+  pattern: RegExp,
+  map: (matches: RegExpMatchArray) => MergeParseResult<TMeta>
+): MergeParser<TMeta> {
+  return (line: string) => {
+    const matches = line.match(pattern)
+    return matches ? map(matches) : null
+  }
+}
+
+export function createRegexRevertParser<TRevert extends CommitRecord> (
+  pattern: RegExp,
+  map: (matches: RegExpMatchArray) => TRevert
+): RevertParser<TRevert> {
+  return (input: string) => {
+    const matches = input.match(pattern)
+    return matches ? map(matches) : null
+  }
+}
+
+export function createRegexFieldParser<TFields extends CommitRecord = CommitRecord> (
+  pattern: RegExp
+): FieldParser<TFields> {
+  return (line: string) => {
+    const matches = line.match(pattern)
+    if (!matches) {
+      return null
+    }
+
+    const key = matches[1] ?? null
+
+    if (!key) {
+      return {
+        target: 'none',
+      }
+    }
+
+    if (isManageable(key)) {
+      return {
+        target: 'manageable',
+        key,
+      }
+    }
+
+    return {
+      target: 'field',
+      key: key as keyof TFields & string,
+    }
+  }
 }
