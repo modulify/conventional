@@ -84,7 +84,7 @@ export const createEnvironment = (templatesPaths: string|string[] = '') => {
   const paths = arraify(templatesPaths).filter(Boolean)
   const env = new Environment([
     new DynamicLoader(),
-    ...(paths ? [new FileSystemLoader(paths)] : []),
+    ...(paths.length > 0 ? [new FileSystemLoader(paths)] : []),
   ], {
     autoescape: false,
     lstripBlocks: true,

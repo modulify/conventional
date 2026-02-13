@@ -11,6 +11,7 @@ import { it } from 'vitest'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
+import { vi } from 'vitest'
 
 import fs from 'fs'
 
@@ -87,6 +88,10 @@ describe('write', () => {
       '\n' +
       '* Fixed issue 3 ' + shorten(hash3, 7)
     )
+  })
+
+  it('creates writer with default options', () => {
+    expect(typeof createWrite()).toBe('function')
   })
 
   it('ignores reverted commits when writing changelog', async () => {
@@ -425,5 +430,63 @@ describe('write', () => {
     expect(result).toContain('### ⚠ BREAKING CHANGE')
     expect(result).toContain('breaking 1')
     expect(result).toContain('breaking 2')
+  })
+
+  it('resolves GitHub remote context for render', async () => {
+    const render = vi.fn(() => 'Rendered changelog')
+
+    const write = createWrite({
+      git: {
+        url: async () => 'https://github.com/modulify/conventional.git',
+        commits: async function * () {},
+      } as unknown as Parameters<typeof createWrite>[0]['git'],
+      render,
+    })
+
+    await write('1.2.3')
+
+    expect(render).toHaveBeenCalledWith(expect.objectContaining({
+      version: '1.2.3',
+      host: 'https://github.com',
+      owner: 'modulify',
+      repository: 'conventional',
+    }))
+  })
+
+  it('resolves non-GitHub remote host for render', async () => {
+    const render = vi.fn(() => 'Rendered changelog')
+
+    const write = createWrite({
+      git: {
+        url: async () => 'git@gitlab.com:modulify/conventional.git',
+        commits: async function * () {},
+      } as unknown as Parameters<typeof createWrite>[0]['git'],
+      render,
+    })
+
+    await write('1.2.3')
+
+    expect(render).toHaveBeenCalledWith(expect.objectContaining({
+      host: 'gitlab.com',
+      owner: 'modulify',
+      repository: 'conventional',
+    }))
+  })
+
+  it('removes temporary file on write failure', async () => {
+    const dir = join(cwd, 'failing-output')
+    const tmp = dir + '.tmp'
+
+    fs.mkdirSync(dir)
+    fs.writeFileSync(tmp, 'stale temp file')
+    exec('git commit -m "feat: Temp cleanup test" --allow-empty --no-gpg-sign')
+
+    const write = createWrite({
+      cwd,
+      file: dir,
+    })
+
+    await expect(write()).rejects.toThrow('EISDIR')
+    expect(fs.existsSync(tmp)).toBe(false)
   })
 })
