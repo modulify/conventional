@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_as:
+        description: Release type override (major|minor|patch)
+        required: false
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+      prerelease:
+        description: Prerelease channel (alpha|beta|rc)
+        required: false
+        type: choice
+        options:
+          - alpha
+          - beta
+          - rc
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    concurrency:
+      group: release-${{ github.ref_name }}
+      cancel-in-progress: false
+
+    steps:
+    - name: Using branch ${{ github.ref }} for repository ${{ github.repository }}.
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Use Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22.x
+
+    - name: Yarn configuration
+      run: |
+        make .yarnrc.yml
+        echo "enableGlobalCache: false" >> .yarnrc.yml
+
+    - name: Install dependencies
+      run: |
+        yarn install
+
+    - name: Configure git identity
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+    - name: Run release
+      env:
+        HUSKY: "0"
+        RELEASE_AS: ${{ github.event.inputs.release_as || '' }}
+        PRERELEASE: ${{ github.event.inputs.prerelease || '' }}
+      run: |
+        ARGS=()
+
+        if [ -n "$RELEASE_AS" ]; then
+          ARGS+=(--release-as "$RELEASE_AS")
+        fi
+
+        if [ -n "$PRERELEASE" ]; then
+          ARGS+=(--prerelease "$PRERELEASE")
+        fi
+
+        yarn release "${ARGS[@]}"
+
+    - name: Publish packages
+      env:
+        YARN_NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        PRERELEASE: ${{ github.event.inputs.prerelease || '' }}
+      run: |
+        if [ -z "$YARN_NPM_AUTH_TOKEN" ]; then
+          echo "NPM_TOKEN is required"
+          exit 1
+        fi
+
+        PUBLISH_ARGS=(--access public --tolerate-republish)
+
+        if [ -n "$PRERELEASE" ]; then
+          PUBLISH_ARGS+=(--tag "$PRERELEASE")
+        fi
+
+        yarn workspace @modulify/conventional-git npm publish "${PUBLISH_ARGS[@]}"
+        yarn workspace @modulify/conventional-bump npm publish "${PUBLISH_ARGS[@]}"
+        yarn workspace @modulify/conventional-changelog npm publish "${PUBLISH_ARGS[@]}"
+
+    - name: Push release commit and tags
+      run: |
+        git push --follow-tags origin "${GITHUB_REF_NAME}"
