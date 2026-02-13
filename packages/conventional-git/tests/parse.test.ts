@@ -243,6 +243,33 @@ describe('parse', () => {
         text: 'this is a security note',
       })
     })
+
+    it('should support disabling notes, actions and issue prefixes', () => {
+      const parse = createParser({
+        notesKeywords: [],
+        referenceActions: [],
+        issuePrefixes: [],
+      })
+
+      const commit = parse('feat: subject\n\nBREAKING CHANGE: should be plain text\nCloses #123')
+
+      expect(commit.notes).toEqual([])
+      expect(commit.references).toEqual([])
+      expect(commit.body).toContain('BREAKING CHANGE: should be plain text')
+    })
+
+    it('should support case-sensitive issue prefixes', () => {
+      const parse = createParser({
+        issuePrefixes: ['gh-'],
+        issuePrefixesCaseSensitive: true,
+      })
+
+      const commit = parse('fix: GH-10 and gh-11')
+
+      expect(commit.references).toHaveLength(1)
+      expect(commit.references[0].issue).toBe('11')
+      expect(commit.references[0].prefix).toBe('gh-')
+    })
   })
 
   describe('edge cases', () => {
@@ -321,6 +348,17 @@ describe('parse', () => {
       expect(commit.meta.nonManageable).toBe('feature')
     })
 
+    it('should handle merge correspondence with missing captured values', () => {
+      const parse = createParser({
+        mergePattern: /^Merge branch/,
+        mergeCorrespondence: ['nonManageable'],
+      })
+
+      const commit = parse('Merge branch\nfeat: subject')
+
+      expect(commit.meta.nonManageable).toBeNull()
+    })
+
     it('should handle parseReference returning null for malformed reference', () => {
       const parse = createParser({
         issuePrefixes: ['#'],
@@ -329,6 +367,20 @@ describe('parse', () => {
       const commit = parse('fix: something with # but no number #abc')
 
       expect(commit.references).toEqual([])
+    })
+
+    it('should parse references with repository but without owner', () => {
+      const parse = createParser()
+      const commit = parse('fix: handled in repo#42')
+
+      expect(commit.references).toEqual([{
+        raw: 'fix: handled in repo#42',
+        issue: '42',
+        action: null,
+        prefix: '#',
+        owner: null,
+        repository: 'repo',
+      }])
     })
 
     it('should handle parseRevert with missing correspondence fields', () => {
@@ -340,6 +392,47 @@ describe('parse', () => {
       const commit = parse('Revert some subject')
 
       expect(commit.revert?.customField).toBe('some subject')
+    })
+
+    it('should fill missing revert correspondence with null', () => {
+      const parse = createParser({
+        revertPattern: /^Revert (.*)/,
+        revertCorrespondence: ['first', 'second'],
+      })
+
+      const commit = parse('Revert subject')
+
+      expect(commit.revert).toEqual({
+        first: 'subject',
+        second: null,
+      })
+    })
+
+    it('should keep type null when header type is empty', () => {
+      const parse = createParser()
+      const commit = parse(': subject')
+
+      expect(commit.type).toBeNull()
+      expect(commit.subject).toBe('subject')
+    })
+
+    it('should keep subject null when header subject is empty', () => {
+      const parse = createParser()
+      const commit = parse('feat: ')
+
+      expect(commit.type).toBe('feat')
+      expect(commit.subject).toBeNull()
+    })
+
+    it('should handle field pattern without capturing group', () => {
+      const parse = createParser({
+        fieldPattern: /^-field-$/,
+      })
+
+      const commit = parse('feat: subject\n\n-field-\nvalue')
+
+      expect(commit.fields).toEqual({})
+      expect(commit.body).toBe('value')
     })
 
     it('should handle trimLineBreaks for only line breaks', () => {
