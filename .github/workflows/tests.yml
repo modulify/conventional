@@ -109,33 +109,11 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
-    - name: Yarn configuration
-      run: |
-        make .yarnrc.yml
-        echo "enableGlobalCache: false" >> .yarnrc.yml
-
-    - name: Cache Yarn PnP dependencies
-      id: cache-deps
-      uses: actions/cache@v4
-      with:
-        path: |
-          .yarn
-          .pnp.*
-        key: ${{ runner.OS }}-node-${{ matrix.node-version }}-yarn-${{ hashFiles('**/yarn.lock') }}
-        restore-keys: |
-          ${{ runner.OS }}-node-${{ matrix.node-version }}-yarn-
-
-    - name: Install dependencies
-      run: |
-        yarn install
-
-    - name: Build packages
-      run: |
-        yarn build
-
     - name: Run tests
-      run: |
-        yarn test:coverage
+      uses: ./.github/actions/run-tests
+      with:
+        node-version: ${{ matrix.node-version }}
+        test-command: yarn test:coverage
 
     - name: Upload coverage to GitHub Artifacts
       uses: actions/upload-artifact@v4

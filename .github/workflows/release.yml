@@ -41,14 +41,11 @@ jobs:
       with:
         node-version: 22.x
 
-    - name: Yarn configuration
-      run: |
-        make .yarnrc.yml
-        echo "enableGlobalCache: false" >> .yarnrc.yml
-
-    - name: Install dependencies
-      run: |
-        yarn install
+    - name: Run tests before release
+      uses: ./.github/actions/run-tests
+      with:
+        node-version: 22.x
+        test-command: yarn test
 
     - name: Configure git identity
       run: |

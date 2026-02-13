@@ -1,0 +1,45 @@
+name: Run tests
+description: Prepare workspace and run project tests.
+
+inputs:
+  node-version:
+    description: Node.js version used for cache key.
+    required: true
+  test-command:
+    description: Shell command used to run tests.
+    required: false
+    default: yarn test:coverage
+
+runs:
+  using: composite
+  steps:
+    - name: Yarn configuration
+      shell: bash
+      run: |
+        make .yarnrc.yml
+        echo "enableGlobalCache: false" >> .yarnrc.yml
+
+    - name: Cache Yarn PnP dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          .yarn
+          .pnp.*
+        key: ${{ runner.os }}-node-${{ inputs.node-version }}-yarn-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-node-${{ inputs.node-version }}-yarn-
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        yarn install
+
+    - name: Build packages
+      shell: bash
+      run: |
+        yarn build
+
+    - name: Run tests
+      shell: bash
+      run: |
+        ${{ inputs.test-command }}
