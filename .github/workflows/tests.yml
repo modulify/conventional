@@ -30,6 +30,10 @@ jobs:
       run: |
         yarn install
 
+    - name: Check peer requirements
+      run: |
+        yarn peers:check
+
     - name: Run commitlint
       run: |
         if [ "${{ github.event_name }}" = "pull_request" ]; then

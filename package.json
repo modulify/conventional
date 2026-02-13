@@ -45,6 +45,7 @@
     "commitlint": "commitlint",
     "commitlint:edit": "commitlint --edit",
     "eslint": "eslint .",
+    "peers:check": "bash ./scripts/check-peers.sh",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "prepare": "husky"

@@ -26,6 +26,11 @@ else
 	$(YARN) eslint
 endif
 
+.PHONY: peers-check
+peers-check: pnp ## Validates peer requirements
+	$(TARGET_HEADER)
+	$(YARN) peers:check
+
 .PHONY: test
 test: pnp ## Runs autotests
 	$(TARGET_HEADER)
