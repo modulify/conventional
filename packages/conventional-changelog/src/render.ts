@@ -156,17 +156,13 @@ export const createRender = (templatesPaths: string|string[] = '') => {
 }
 
 function render<T extends object = object>(env: Environment, options: {
-  context?: T;
+  context: T;
   template?: string;
   templatePath?: string;
-} = {}) {
-  const {
-    context = {},
-    template,
-    templatePath,
-  } = options
+}) {
+  const { context, template, templatePath } = options
 
   return templatePath
     ? env.render(templatePath, context)
-    : env.renderString(template ?? '', context)
+    : env.renderString(template!, context)
 }
