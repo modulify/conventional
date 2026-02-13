@@ -21,14 +21,11 @@ jobs:
       with:
         node-version: 24.x
 
-    - name: Yarn configuration
-      run: |
-        make .yarnrc.yml
-        echo "enableGlobalCache: false" >> .yarnrc.yml
-
-    - name: Install dependencies
-      run: |
-        yarn install
+    - name: Setup workspace
+      uses: ./.github/actions/setup-workspace
+      with:
+        node-version: 24.x
+        use-cache: "false"
 
     - name: Check peer requirements
       run: |
@@ -63,25 +60,10 @@ jobs:
       with:
         node-version: 24.x
 
-    - name: Yarn configuration
-      run: |
-        make .yarnrc.yml
-        echo "enableGlobalCache: false" >> .yarnrc.yml
-
-    - name: Cache Yarn PnP dependencies
-      id: cache-deps
-      uses: actions/cache@v4
+    - name: Setup workspace
+      uses: ./.github/actions/setup-workspace
       with:
-        path: |
-          .yarn
-          .pnp.*
-        key: ${{ runner.OS }}-node-24.x-yarn-${{ hashFiles('**/yarn.lock') }}
-        restore-keys: |
-          ${{ runner.OS }}-node-24.x-yarn-
-
-    - name: Install dependencies
-      run: |
-        yarn install
+        node-version: 24.x
 
     - name: Run eslint
       run: |

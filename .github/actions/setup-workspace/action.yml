@@ -1,0 +1,36 @@
+name: Setup workspace
+description: Prepare Yarn workspace and install dependencies.
+
+inputs:
+  node-version:
+    description: Node.js version used for cache key.
+    required: true
+  use-cache:
+    description: Enable Yarn cache restore/save.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Yarn configuration
+      shell: bash
+      run: |
+        make .yarnrc.yml
+        echo "enableGlobalCache: false" >> .yarnrc.yml
+
+    - name: Cache Yarn PnP dependencies
+      if: inputs.use-cache == 'true'
+      uses: actions/cache@v4
+      with:
+        path: |
+          .yarn
+          .pnp.*
+        key: ${{ runner.os }}-node-${{ inputs.node-version }}-yarn-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-node-${{ inputs.node-version }}-yarn-
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        yarn install

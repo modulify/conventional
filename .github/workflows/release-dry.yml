@@ -39,14 +39,10 @@ jobs:
       with:
         node-version: 22.x
 
-    - name: Yarn configuration
-      run: |
-        make .yarnrc.yml
-        echo "enableGlobalCache: false" >> .yarnrc.yml
-
-    - name: Install dependencies
-      run: |
-        yarn install
+    - name: Setup workspace
+      uses: ./.github/actions/setup-workspace
+      with:
+        node-version: 22.x
 
     - name: Run release dry run
       env:

@@ -13,26 +13,10 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Yarn configuration
-      shell: bash
-      run: |
-        make .yarnrc.yml
-        echo "enableGlobalCache: false" >> .yarnrc.yml
-
-    - name: Cache Yarn PnP dependencies
-      uses: actions/cache@v4
+    - name: Setup workspace
+      uses: ./.github/actions/setup-workspace
       with:
-        path: |
-          .yarn
-          .pnp.*
-        key: ${{ runner.os }}-node-${{ inputs.node-version }}-yarn-${{ hashFiles('**/yarn.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-node-${{ inputs.node-version }}-yarn-
-
-    - name: Install dependencies
-      shell: bash
-      run: |
-        yarn install
+        node-version: ${{ inputs.node-version }}
 
     - name: Build packages
       shell: bash
