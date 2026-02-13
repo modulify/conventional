@@ -1,21 +1,11 @@
 import {
-  defineConfig,
   mergeConfig,
 } from 'vitest/config'
-import { join } from 'node:path'
+import { createWorkspaceVitestConfig } from '../../vitest.workspace.base'
 
 import common from './vite.config.common'
 
-export default mergeConfig(common, defineConfig({
-  test: {
-    server: {
-      deps: {
-        cacheDir: join(__dirname, '../../artifacts/vite/conventional-git-deps'),
-      },
-    },
-    coverage: {
-      provider: 'istanbul',
-      include: ['src/**'],
-    },
-  },
+export default mergeConfig(common, createWorkspaceVitestConfig({
+  workspace: 'conventional-git',
+  include: ['src/**'],
 }))

@@ -1,22 +1,12 @@
 import {
-  defineConfig,
   mergeConfig,
 } from 'vitest/config'
-import { join } from 'node:path'
+import { createWorkspaceVitestConfig } from '../../vitest.workspace.base'
 
 import common from './vite.config.common'
 
-export default mergeConfig(common, defineConfig({
-  test: {
-    server: {
-      deps: {
-        cacheDir: join(__dirname, '../../artifacts/vite/conventional-changelog-deps'),
-      },
-    },
-    coverage: {
-      provider: 'istanbul',
-      include: ['src/**'],
-      exclude: ['src/**/*.njk'],
-    },
-  },
+export default mergeConfig(common, createWorkspaceVitestConfig({
+  workspace: 'conventional-changelog',
+  include: ['src/**'],
+  exclude: ['src/**/*.njk'],
 }))
