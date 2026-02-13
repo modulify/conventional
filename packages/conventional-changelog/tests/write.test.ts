@@ -121,6 +121,31 @@ describe('write', () => {
     )
   })
 
+  it('falls back to header matching when revert hash is unavailable', async () => {
+    exec('git commit -m "feat: Added feature #A" --allow-empty --no-gpg-sign')
+    exec('git commit -m "feat: Added feature #B" --allow-empty --no-gpg-sign')
+
+    const hashB = lastHash()
+
+    exec('git commit -m \'Revert "feat: Added feature #A"\' -m \'This reverts commit .\' --allow-empty --no-gpg-sign')
+
+    const write = createWrite({
+      cwd,
+      types: [{ type: 'feat', section: 'Features' }],
+      context: {
+        linkReferences: false,
+      },
+    })
+
+    expect(await write()).toBe(
+      '## 0.0.0\n' +
+      '\n' +
+      '### Features\n' +
+      '\n' +
+      '* Added feature #B ' + shorten(hashB, 7)
+    )
+  })
+
   it('restores feature after revert of revert in changelog', async () => {
     exec('git commit -m "feat: Added feature #B" --allow-empty --no-gpg-sign')
     const featHash = lastHash()
