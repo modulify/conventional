@@ -1,10 +1,12 @@
 TARGET_HEADER=@printf '===== \033[34m%s\033[0m\n' $@
+TARGET_OK=@printf '----- \033[32mOK\033[0m\n'
 YARN=yarn
 
 .PHONY: .yarnrc.yml
 .yarnrc.yml:  ## Generates yarn configuration
 	$(TARGET_HEADER)
 	cp .yarnrc.dist.yml .yarnrc.yml
+	$(TARGET_OK)
 
 .PHONY: pnp
 pnp: package.json yarn.lock ## Installs dependencies
@@ -35,6 +37,19 @@ typecheck: pnp ## Runs typecheck for all workspaces
 peers-check: pnp ## Validates peer requirements
 	$(TARGET_HEADER)
 	$(YARN) peers:check
+
+.PHONY: ci-actionlint
+ci-actionlint: ## Runs actionlint for GitHub Actions workflows
+	$(TARGET_HEADER)
+	@if command -v actionlint >/dev/null 2>&1; then \
+		actionlint -color; \
+	elif command -v docker >/dev/null 2>&1; then \
+		docker run --rm -v "$$(pwd):/repo" -w /repo rhysd/actionlint:latest -color; \
+	else \
+		echo "actionlint or docker is required to run ci-actionlint"; \
+		exit 1; \
+	fi
+	$(TARGET_OK)
 
 .PHONY: test
 test: pnp ## Runs autotests
