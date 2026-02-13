@@ -1,5 +1,4 @@
 import type { Commit } from '@modulify/conventional-git/types/commit'
-import type { CommitMeta } from '@modulify/conventional-git/types/commit'
 import type { CommitType } from '@modulify/conventional-bump'
 import type { RenderContext as _RenderContext } from './render'
 import type { RenderFunction } from './render'
@@ -35,7 +34,11 @@ export interface ChangelogOptions {
   output?: Writable;
 }
 
-const reverts = (commit: Commit) => (revert: CommitMeta) => {
+const reverts = (commit: Commit) => (revert: NonNullable<Commit['revert']>) => {
+  if (commit.hash && revert.hash) {
+    return commit.hash.startsWith(revert.hash) || revert.hash.startsWith(commit.hash)
+  }
+
   return revert.header === commit.header
 }
 
@@ -71,7 +74,7 @@ export const createWrite = (options: ChangelogOptions = {}) => {
       }
     }
 
-    const reverted: CommitMeta[] = []
+    const reverted: Array<NonNullable<Commit['revert']>> = []
 
     for await (const commit of commits) {
       if (reverted.some(reverts(commit))) continue

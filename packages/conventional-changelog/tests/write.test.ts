@@ -97,11 +97,12 @@ describe('write', () => {
 
   it('ignores reverted commits when writing changelog', async () => {
     exec('git commit -m "feat: Added feature #A" --allow-empty --no-gpg-sign')
+    const hashA = lastHash()
     exec('git commit -m "feat: Added feature #B" --allow-empty --no-gpg-sign')
 
-    const hash = lastHash()
+    const hashB = lastHash()
 
-    exec(`git commit -m 'Revert "feat: Added feature #A"' -m 'This reverts commit ${lastHash()}.' --allow-empty --no-gpg-sign`)
+    exec(`git commit -m 'Revert "feat: Added feature #A"' -m 'This reverts commit ${hashA}.' --allow-empty --no-gpg-sign`)
 
     const write = createWrite({
       cwd,
@@ -116,7 +117,7 @@ describe('write', () => {
       '\n' +
       '### Features\n' +
       '\n' +
-      '* Added feature #B ' + shorten(hash, 7)
+      '* Added feature #B ' + shorten(hashB, 7)
     )
   })
 
