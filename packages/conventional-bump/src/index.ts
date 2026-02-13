@@ -1,5 +1,4 @@
 import type { Commit } from '@modulify/conventional-git/types/commit'
-import type { CommitMeta } from '@modulify/conventional-git/types/commit'
 import type { ParseOptions } from '@modulify/conventional-git/types/parse'
 import type { ReleaseType as SemverReleaseType } from 'semver'
 
@@ -92,7 +91,7 @@ export class ReleaseAdvisor {
       return known
     }, [] as string[]) : []
 
-    const reverted: CommitMeta[] = []
+    const reverted: Array<NonNullable<Commit['revert']>> = []
 
     let level = 2
     let breaking = 0
@@ -186,7 +185,13 @@ function isPrerelease(current: ReleaseType, next: ReleaseType) {
 }
 
 function reverts (commit: Commit) {
-  return (revert: CommitMeta) => revert.header === commit.header
+  return (revert: NonNullable<Commit['revert']>) => {
+    if (commit.hash && revert.hash) {
+      return commit.hash.startsWith(revert.hash) || revert.hash.startsWith(commit.hash)
+    }
+
+    return revert.header === commit.header
+  }
 }
 
 function typeOf(version: string): ReleaseType {
