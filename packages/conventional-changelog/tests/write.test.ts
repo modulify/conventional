@@ -19,6 +19,7 @@ const __temporary = join(__dirname, 'tmp')
 
 describe('write', () => {
   let cwd: string
+  type ChangelogOptions = NonNullable<Parameters<typeof createWrite>[0]>
 
   const exec = (command: string) => execSync(command, {
     cwd,
@@ -468,7 +469,7 @@ describe('write', () => {
       git: {
         url: async () => 'https://github.com/modulify/conventional.git',
         commits: async function * () {},
-      } as unknown as Parameters<typeof createWrite>[0]['git'],
+      } as unknown as ChangelogOptions['git'],
       render,
     })
 
@@ -489,7 +490,7 @@ describe('write', () => {
       git: {
         url: async () => 'git@gitlab.com:modulify/conventional.git',
         commits: async function * () {},
-      } as unknown as Parameters<typeof createWrite>[0]['git'],
+      } as unknown as ChangelogOptions['git'],
       render,
     })
 

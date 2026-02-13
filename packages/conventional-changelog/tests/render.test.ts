@@ -127,8 +127,8 @@ describe('render', () => {
     const withDefault = createEnvironment()
     const withArray = createEnvironment([])
 
-    expect(withDefault.renderString('{{ 1 + 1 }}')).toBe('2')
-    expect(withArray.renderString('{{ 2 + 2 }}')).toBe('4')
+    expect(withDefault.renderString('{{ 1 + 1 }}', {})).toBe('2')
+    expect(withArray.renderString('{{ 2 + 2 }}', {})).toBe('4')
   })
 
   it('loads templates from file system loader', () => {
