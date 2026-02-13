@@ -1,0 +1,105 @@
+name: Bug report
+description: Report a reproducible problem in the repository.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug.
+        Please provide a minimal reproducible case so we can fix it quickly.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checklist
+      options:
+        - label: I checked existing issues and did not find a duplicate.
+          required: true
+        - label: I can reproduce this on the latest project state.
+          required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Affected area
+      description: Select the main area where the bug appears.
+      options:
+        - conventional-git
+        - conventional-bump
+        - conventional-changelog
+        - release/ci workflow
+        - repository tooling
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      description: Example: 0.0.1 (or commit SHA if from source).
+      placeholder: 0.0.1
+    validations:
+      required: false
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Node.js, Yarn, OS.
+      placeholder: node 22.x, yarn 4.12.0, ubuntu 22.04
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide exact steps, commands, and input data.
+      placeholder: |
+        1. Run ...
+        2. Execute ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Paste relevant output, stack traces, or screenshots.
+      render: shell
+    validations:
+      required: false
+
+  - type: input
+    id: reproduction
+    attributes:
+      label: Reproduction link
+      description: Link to minimal repo, gist, or branch with reproduction.
+      placeholder: https://github.com/...
+    validations:
+      required: false
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: Any context that may help with triage.
+    validations:
+      required: false
