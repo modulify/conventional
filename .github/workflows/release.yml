@@ -70,6 +70,10 @@ jobs:
 
         yarn release "${ARGS[@]}"
 
+    - name: Build packages for publish
+      run: |
+        yarn build
+
     - name: Publish packages
       env:
         YARN_NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
