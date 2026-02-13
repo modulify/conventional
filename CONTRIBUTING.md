@@ -1,5 +1,7 @@
 # Contributing
 
+[🌐 Translations](./docs/INDEX.md#contributing) • [📜 Code of Conduct](./CODE_OF_CONDUCT.md)
+
 Thanks for contributing to `modulify/conventional`.
 
 This document describes our expectations for contribution quality.  
@@ -78,6 +80,7 @@ For external contributions, we expect this order of work:
    - architecture smell.
 4. Add controlled failure scenarios for defensive branches.
 5. Prefer removing redundant logic or improving architecture over artificial tests for impossible paths.
+6. If real-world coverage already includes both normal and failure public API flows, but total coverage is still below `100%`, treat it as a design flaw and/or a bug, not as a reason to add synthetic edge-case tests just to satisfy the metric.
 
 This philosophy is codified in:
 - `skills/coverage-recovery/SKILL.md`
