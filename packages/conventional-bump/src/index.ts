@@ -181,7 +181,7 @@ function isStable(type: SemverReleaseType): type is ReleaseType {
   return !type.startsWith('pre')
 }
 
-function isPrerelease(current: SemverReleaseType, next: SemverReleaseType) {
+function isPrerelease(current: ReleaseType, next: ReleaseType) {
   return current === next || priorityOf(current) > priorityOf(next)
 }
 
@@ -199,17 +199,10 @@ function typeOf(version: string): ReleaseType {
   return 'patch'
 }
 
-function priorityOf(type: SemverReleaseType | undefined) {
-  return type
-    ? {
-      major: 2,
-      minor: 1,
-      patch: 0,
-      premajor: -1,
-      preminor: -1,
-      prepatch: -1,
-      prerelease: -1,
-      release: -1,
-    }[type] ?? -1
-    : -1
+function priorityOf(type: ReleaseType) {
+  return {
+    major: 2,
+    minor: 1,
+    patch: 0,
+  }[type]
 }
