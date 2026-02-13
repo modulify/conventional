@@ -50,7 +50,7 @@ export function createParser (options: ParseOptions = {}) {
     const lines = linesOf(raw, _options)
 
     if (lines.length > 0 && MATCH_HASH.test(lines[0])) {
-      commit.hash = lines.shift() || null
+      commit.hash = lines.shift()!
     }
 
     const content = { lines, cursor: 0 }
@@ -173,7 +173,7 @@ function parseMerge (commit: Commit, content: Content, patterns: ParsePatterns, 
   const matches = line ? line.match(patterns.merge) : null
 
   if (matches) {
-    commit.merge = matches[0] ?? null
+    commit.merge = matches[0]
 
     correspondence.forEach((key, index) => {
       const value = matches[index + 1] ?? null

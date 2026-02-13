@@ -270,6 +270,33 @@ describe('parse', () => {
       expect(commit.references[0].issue).toBe('11')
       expect(commit.references[0].prefix).toBe('gh-')
     })
+
+    it('should parse references with null action when reference actions are disabled', () => {
+      const parse = createParser({
+        referenceActions: [],
+        issuePrefixes: ['#'],
+      })
+
+      const commit = parse('fix: issue #777')
+
+      expect(commit.references).toEqual([{
+        raw: 'fix: issue #777',
+        issue: '777',
+        action: null,
+        prefix: '#',
+        owner: null,
+        repository: null,
+      }])
+    })
+
+    it('should handle empty action sentence in references', () => {
+      const parse = createParser()
+      const commit = parse('fix: subject\n\nCloses ')
+
+      expect(commit.body).toBe('Closes ')
+      expect(commit.footer).toBeNull()
+      expect(commit.references).toEqual([])
+    })
   })
 
   describe('edge cases', () => {
@@ -348,6 +375,18 @@ describe('parse', () => {
       expect(commit.meta.nonManageable).toBe('feature')
     })
 
+    it('should fallback to default merge correspondence when undefined is passed', () => {
+      const parse = createParser({
+        mergePattern: /^Merge branch '([\w-]+)'/,
+        mergeCorrespondence: undefined,
+      })
+
+      const commit = parse('Merge branch \'feature\'\nfeat: subject')
+
+      expect(commit.merge).toBe('Merge branch \'feature\'')
+      expect(commit.meta).toEqual({})
+    })
+
     it('should handle merge correspondence with missing captured values', () => {
       const parse = createParser({
         mergePattern: /^Merge branch/,
@@ -408,6 +447,17 @@ describe('parse', () => {
       })
     })
 
+    it('should fallback to default revert correspondence when undefined is passed', () => {
+      const parse = createParser({
+        revertPattern: /^Revert (.*)/,
+        revertCorrespondence: undefined,
+      })
+
+      const commit = parse('Revert subject')
+
+      expect(commit.revert).toEqual({})
+    })
+
     it('should keep type null when header type is empty', () => {
       const parse = createParser()
       const commit = parse(': subject')
@@ -439,6 +489,15 @@ describe('parse', () => {
       const commit = parse('\n\n')
 
       expect(commit.header).toBe(null)
+    })
+
+    it('should keep header null when all lines are filtered out', () => {
+      const parse = createParser({ commentChar: '#' })
+      const commit = parse('# comment line only')
+
+      expect(commit.header).toBeNull()
+      expect(commit.body).toBeNull()
+      expect(commit.footer).toBeNull()
     })
   })
 })
