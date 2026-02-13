@@ -1,0 +1,66 @@
+name: Release Dry Run
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+  workflow_dispatch:
+    inputs:
+      release_as:
+        description: Release type override (major|minor|patch)
+        required: false
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+      prerelease:
+        description: Prerelease channel (alpha|beta|rc)
+        required: false
+        type: choice
+        options:
+          - alpha
+          - beta
+          - rc
+
+jobs:
+  release-dry:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Using branch ${{ github.ref }} for repository ${{ github.repository }}.
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Use Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22.x
+
+    - name: Yarn configuration
+      run: |
+        make .yarnrc.yml
+        echo "enableGlobalCache: false" >> .yarnrc.yml
+
+    - name: Install dependencies
+      run: |
+        yarn install
+
+    - name: Run release dry run
+      env:
+        RELEASE_AS: ${{ github.event.inputs.release_as || '' }}
+        PRERELEASE: ${{ github.event.inputs.prerelease || '' }}
+      run: |
+        ARGS=()
+
+        if [ -n "$RELEASE_AS" ]; then
+          ARGS+=(--release-as "$RELEASE_AS")
+        fi
+
+        if [ -n "$PRERELEASE" ]; then
+          ARGS+=(--prerelease "$PRERELEASE")
+        fi
+
+        yarn release:dry "${ARGS[@]}"

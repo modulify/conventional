@@ -34,7 +34,7 @@ try {
   const out = new Output(options)
   const log = createWrite({
     cwd,
-    file: options.dry ? relative(cwd, 'CHANGELOG.md') : undefined,
+    file: options.dry ? undefined : relative(cwd, 'CHANGELOG.md'),
   })
 
   const advisor = new ReleaseAdvisor({ cwd })
@@ -90,7 +90,7 @@ try {
   files.push(relative(cwd, 'CHANGELOG.md'))
 
   if (options.dry) {
-    out.info('No commiting & tagging since it was a dry run')
+    out.info('No committing or tagging since this was a dry run')
   } else {
     out.info(`Committing ${files.length} staged files`)
 
