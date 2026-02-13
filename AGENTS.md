@@ -135,6 +135,8 @@ Do not repeat such deviations; use workspace names as source of truth.
 `skills/commit-workflow/SKILL.md`.
 - For `yarn.lock` merge/rebase conflict resolution, use the local skill:
 `skills/yarn-lock-conflict-resolution/SKILL.md`.
+- For coverage deficit analysis and recovery strategy, use the local skill:
+`skills/coverage-recovery/SKILL.md`.
 
 ## docs/ Navigation
 - `docs/INDEX.md`: translations index.
