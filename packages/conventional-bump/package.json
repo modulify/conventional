@@ -71,6 +71,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "vite build"
+    "build": "vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   }
 }

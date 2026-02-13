@@ -26,6 +26,11 @@ else
 	$(YARN) eslint
 endif
 
+.PHONY: typecheck
+typecheck: pnp ## Runs typecheck for all workspaces
+	$(TARGET_HEADER)
+	$(YARN) typecheck
+
 .PHONY: peers-check
 peers-check: pnp ## Validates peer requirements
 	$(TARGET_HEADER)

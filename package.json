@@ -51,6 +51,7 @@
     "release:dry": "yarn release --dry",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "typecheck": "yarn workspaces foreach -A run typecheck",
     "prepare": "husky"
   }
 }
