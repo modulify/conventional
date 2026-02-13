@@ -23,6 +23,7 @@ const __temporary = join(__dirname, 'tmp')
 
 describe('ReleaseAdvisor', () => {
   let cwd: string
+  type ReleaseAdvisorOptions = NonNullable<ConstructorParameters<typeof ReleaseAdvisor>[0]>
 
   const commit = (overrides: Partial<{
     hash: string | null;
@@ -256,7 +257,7 @@ describe('ReleaseAdvisor', () => {
       })
 
       const advisor = new ReleaseAdvisor({
-        git: createGit([revert, base]) as unknown as ConstructorParameters<typeof ReleaseAdvisor>[0]['git'],
+        git: createGit([revert, base]) as unknown as ReleaseAdvisorOptions['git'],
       })
 
       expect(await advisor.advise({
@@ -286,7 +287,7 @@ describe('ReleaseAdvisor', () => {
           type: 'feat',
           header: 'feat: Added feature',
           subject: 'Added feature',
-        })]) as unknown as ConstructorParameters<typeof ReleaseAdvisor>[0]['git'],
+        })]) as unknown as ReleaseAdvisorOptions['git'],
       })
 
       expect(await advisor.next('0.1.0-alpha.1', { prerelease: 'alpha' })).toEqual({
