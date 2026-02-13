@@ -75,6 +75,26 @@ createRender(templatesPaths?: string | string[]): RenderFunction
 
 You can provide custom paths to your own `.njk` templates to override the default ones (`changelog.md.njk`, `commit.md.njk`, `header.md.njk`, `section.md.njk`).
 
+Middleware-style wrapper example:
+
+```ts
+import { createRender, createWrite } from '@modulify/conventional-changelog'
+
+const base = createRender()
+
+const write = createWrite({
+  render: ({ version = '0.0.0', sections = [], highlights = [] }) => {
+    const header = `<!-- generated -->\n## ${version}`
+    const body = sections.map((section) => base.section(section)).join('\n\n')
+    const notes = highlights.length
+      ? '\n\n' + base({ version, sections: [], highlights })
+      : ''
+
+    return `${header}\n\n${body}${notes}`.trim()
+  },
+})
+```
+
 ### createEnvironment
 
 Creates a Nunjucks environment with pre-configured filters (`forge`, `shorten`).

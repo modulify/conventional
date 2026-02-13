@@ -177,4 +177,13 @@ describe('render', () => {
       commits: [],
     }, { template: 'SECTION {{section.title}}' })).toBe('SECTION My Section')
   })
+
+  it('renders section without options', () => {
+    const render = createRender()
+
+    expect(render.section({
+      title: 'Middleware Section',
+      commits: [],
+    })).toContain('### Middleware Section')
+  })
 })

@@ -132,7 +132,7 @@ export const createRender = (templatesPaths: string|string[] = '') => {
     context?: T;
     template?: string;
     templatePath?: string;
-  }) => {
+  } = {}) => {
     const { template, templatePath, context = {} } = options
 
     return render(env, {

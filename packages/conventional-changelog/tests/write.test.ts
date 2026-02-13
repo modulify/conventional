@@ -272,6 +272,35 @@ describe('write', () => {
     expect(result).toContain('* Scoped feature')
   })
 
+  it('supports middleware-style render wrapper around createRender', async () => {
+    exec('git commit -m "feat: Middleware feature" --allow-empty --no-gpg-sign')
+
+    const base = createRender()
+
+    const write = createWrite({
+      cwd,
+      types: [{ type: 'feat', section: 'Features' }],
+      render: ({ version = '0.0.0', sections = [], highlights = [] }: RenderContext) => {
+        const header = `<!-- middleware -->\n## ${version}`
+        const body = sections.map((group) => base.section(group)).join('\n\n')
+        const notes = highlights.length ? '\n\n' + base({
+          version,
+          sections: [],
+          highlights,
+        }) : ''
+
+        return `${header}\n\n${body}${notes}`.trim()
+      },
+    })
+
+    const result = await write('2.0.0')
+
+    expect(result).toContain('<!-- middleware -->')
+    expect(result).toContain('## 2.0.0')
+    expect(result).toContain('### Features')
+    expect(result).toContain('* Middleware feature')
+  })
+
   it('supports output to Writable stream', async () => {
     exec('git commit -m "feat: Stream feature" --allow-empty --no-gpg-sign')
 
