@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [ "**" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "**" ]
+    branches: [ "main" ]
 
 jobs:
   commitlint:
@@ -16,10 +16,10 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Use Node.js 22.x
+    - name: Use Node.js 24.x
       uses: actions/setup-node@v4
       with:
-        node-version: 22.x
+        node-version: 24.x
 
     - name: Yarn configuration
       run: |
@@ -54,18 +54,14 @@ jobs:
     needs: commitlint
     runs-on: ubuntu-22.04
 
-    strategy:
-      matrix:
-        node-version: [ 20.x, 22.x ]
-
     steps:
     - name: Using branch ${{ github.ref }} for repository ${{ github.repository }}.
       uses: actions/checkout@v4
 
-    - name: Use Node.js ${{ matrix.node-version }}
+    - name: Use Node.js 24.x
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: 24.x
 
     - name: Yarn configuration
       run: |
@@ -79,9 +75,9 @@ jobs:
         path: |
           .yarn
           .pnp.*
-        key: ${{ runner.OS }}-node-${{ matrix.node-version }}-yarn-${{ hashFiles('**/yarn.lock') }}
+        key: ${{ runner.OS }}-node-24.x-yarn-${{ hashFiles('**/yarn.lock') }}
         restore-keys: |
-          ${{ runner.OS }}-node-${{ matrix.node-version }}-yarn-
+          ${{ runner.OS }}-node-24.x-yarn-
 
     - name: Install dependencies
       run: |
@@ -98,7 +94,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [ 20.x, 22.x ]
+        node-version: [ 22.x, 24.x ]
 
     steps:
     - name: Using branch ${{ github.ref }} for repository ${{ github.repository }}.
@@ -122,6 +118,7 @@ jobs:
         path: coverage/
 
     - name: Upload coverage reports to Codecov
+      if: matrix.node-version == '24.x'
       uses: codecov/codecov-action@v4
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
