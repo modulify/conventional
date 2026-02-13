@@ -44,7 +44,7 @@
     "build": "yarn workspaces foreach -A --topological-dev run build",
     "commitlint": "commitlint",
     "commitlint:edit": "commitlint --edit",
-    "eslint": "yarn workspaces foreach -W run eslint",
+    "eslint": "eslint .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "prepare": "husky"

@@ -3,6 +3,14 @@ import pluginJs from '@eslint/js'
 import pluginTs from 'typescript-eslint'
 
 export default [
+  {
+    ignores: [
+      '.yarn/**',
+      '.pnp.*',
+      'coverage/**',
+      'packages/*/dist/**',
+    ],
+  },
   { files: ['**/*.{js,mjs,cjs,ts,mts}'] },
   {
     languageOptions: {
