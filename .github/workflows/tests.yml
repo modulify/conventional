@@ -87,6 +87,21 @@ jobs:
       with:
         node-version: 24.x
 
+    - name: Cache build outputs
+      id: dist-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          packages/conventional-git/dist
+          packages/conventional-bump/dist
+          packages/conventional-changelog/dist
+        key: ${{ runner.os }}-node-24.x-dist-${{ hashFiles('yarn.lock', 'package.json', 'packages/**/package.json', 'packages/**/src/**', 'packages/**/types/**', 'packages/**/tsconfig.json', 'packages/**/vite.config.ts', 'packages/**/vite.config.common.ts', 'vitest.config.ts') }}
+
+    - name: Build packages
+      if: steps.dist-cache.outputs.cache-hit != 'true'
+      run: |
+        yarn build
+
     - name: Run typecheck
       run: |
         yarn typecheck
