@@ -24,6 +24,48 @@ const __temporary = join(__dirname, 'tmp')
 describe('ReleaseAdvisor', () => {
   let cwd: string
 
+  const commit = (overrides: Partial<{
+    hash: string | null;
+    type: string | null;
+    scope: string | null;
+    subject: string | null;
+    merge: string | null;
+    revert: { header: string | null; hash: string | null; } | null;
+    header: string | null;
+    body: string | null;
+    footer: string | null;
+    notes: { title: string; text: string; }[];
+    mentions: string[];
+    references: unknown[];
+    fields: Record<string, string>;
+    meta: Record<string, string | null>;
+  }> = {}) => ({
+    hash: null,
+    type: null,
+    scope: null,
+    subject: null,
+    merge: null,
+    revert: null,
+    header: null,
+    body: null,
+    footer: null,
+    notes: [],
+    mentions: [],
+    references: [],
+    fields: {},
+    meta: {},
+    ...overrides,
+  })
+
+  const createGit = (history: ReturnType<typeof commit>[]) => ({
+    tags: () => ({ first: async () => null }),
+    commits: async function * () {
+      for (const c of history) {
+        yield c
+      }
+    },
+  })
+
   const exec = (command: string) => execSync(command, {
     cwd,
     encoding: 'utf-8',
@@ -192,6 +234,77 @@ describe('ReleaseAdvisor', () => {
   })
 
   describe('next', () => {
+    it('can be instantiated without options', () => {
+      expect(new ReleaseAdvisor()).toBeInstanceOf(ReleaseAdvisor)
+    })
+
+    it('supports in-memory history for ignore and strict flows', async () => {
+      const base = commit({
+        type: 'feat',
+        header: 'feat: Added feature',
+        subject: 'Added feature',
+      })
+
+      const revert = commit({
+        type: 'revert',
+        header: 'Revert "feat: Added feature"',
+        subject: 'Revert "feat: Added feature"',
+        revert: {
+          header: 'feat: Added feature',
+          hash: 'deadbeef',
+        },
+      })
+
+      const advisor = new ReleaseAdvisor({
+        git: createGit([revert, base]) as unknown as ConstructorParameters<typeof ReleaseAdvisor>[0]['git'],
+      })
+
+      expect(await advisor.advise({
+        strict: true,
+        ignore: (c) => c.type === 'revert',
+      })).toBeNull()
+
+      expect(await advisor.advise({
+        ignoreReverted: false,
+        ignore: (c) => c.type === 'revert',
+      })).toEqual(expect.objectContaining({
+        type: 'minor',
+      }))
+
+      expect(await advisor.next('1.0.0', {
+        strict: true,
+        ignore: () => true,
+      })).toEqual({
+        type: 'unknown',
+        version: '1.0.0',
+      })
+    })
+
+    it('handles prerelease continuation for 0.x versions', async () => {
+      const advisor = new ReleaseAdvisor({
+        git: createGit([commit({
+          type: 'feat',
+          header: 'feat: Added feature',
+          subject: 'Added feature',
+        })]) as unknown as ConstructorParameters<typeof ReleaseAdvisor>[0]['git'],
+      })
+
+      expect(await advisor.next('0.1.0-alpha.1', { prerelease: 'alpha' })).toEqual({
+        type: 'prerelease',
+        version: '0.1.0-alpha.2',
+      })
+
+      expect(await advisor.next('0.0.1-alpha.1', { prerelease: 'alpha' })).toEqual({
+        type: 'prerelease',
+        version: '0.0.1-alpha.2',
+      })
+
+      expect(await advisor.next('0.0.0-alpha.1', { prerelease: 'alpha' })).toEqual({
+        type: 'prerelease',
+        version: '0.0.0-alpha.2',
+      })
+    })
+
     it('returns next version based on recommendation', async () => {
       const advisor = new ReleaseAdvisor({ cwd })
 
