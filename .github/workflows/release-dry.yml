@@ -1,10 +1,6 @@
 name: Release Dry Run
 
 on:
-  push:
-    branches: [ "**" ]
-  pull_request:
-    branches: [ "**" ]
   workflow_dispatch:
     inputs:
       release_as:
@@ -43,6 +39,10 @@ jobs:
       uses: ./.github/actions/setup-workspace
       with:
         node-version: 22.x
+
+    - name: Build packages
+      run: |
+        yarn build
 
     - name: Run release dry run
       env:
