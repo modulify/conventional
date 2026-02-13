@@ -29,6 +29,9 @@ Examples: `Added ...`, `Removed ...`, `Refactored ...`, `Fixed ...`.
 - For workspace-level changes, scope is mandatory.
 - Scope must equal workspace directory name under `packages/*`.
 Valid examples: `conventional-git`, `conventional-bump`, `conventional-changelog`.
+- For root/global manual commits, prefer no scope.
+- Avoid generator-specific scope patterns (for example `release`) in manual commits
+  unless the change is explicitly tied to release automation semantics.
 - Never infer scope from memory when workspace directory can be read from paths.
 - Breaking changes: use `!` in header or `BREAKING CHANGE` footer.
 - Do not mix unrelated changes in one commit.
@@ -60,7 +63,8 @@ git diff
 If `yarn.lock` is changed, split it into a separate commit and keep other files out of that commit.
 4. Choose commit type and scope.
 Scope rule:
-for workspace commits use workspace directory name; for global changes scope may be omitted.
+for workspace commits use workspace directory name; for global changes scope should be omitted.
+Do not use synthetic scopes that imitate version generator outputs.
 5. Compose English commit header:
 ```text
 <type>(<scope>): <Short description>
