@@ -529,6 +529,111 @@ describe('write', () => {
     }))
   })
 
+  it('resolves nested owner path from https remote URL', async () => {
+    const render = vi.fn(() => 'Rendered changelog')
+
+    const write = createWrite({
+      git: {
+        url: async () => 'https://gitlab.com/modulify/release/core/conventional.git',
+        commits: async function * () {},
+      } as unknown as ChangelogOptions['git'],
+      render,
+    })
+
+    await write('1.2.3')
+
+    expect(render).toHaveBeenCalledWith(expect.objectContaining({
+      host: 'gitlab.com',
+      owner: 'modulify/release/core',
+      repository: 'conventional',
+    }))
+  })
+
+  it('resolves nested owner path from scp-like remote URL', async () => {
+    const render = vi.fn(() => 'Rendered changelog')
+
+    const write = createWrite({
+      git: {
+        url: async () => 'git@gitlab.com:modulify/release/core/conventional.git',
+        commits: async function * () {},
+      } as unknown as ChangelogOptions['git'],
+      render,
+    })
+
+    await write('1.2.3')
+
+    expect(render).toHaveBeenCalledWith(expect.objectContaining({
+      host: 'gitlab.com',
+      owner: 'modulify/release/core',
+      repository: 'conventional',
+    }))
+  })
+
+  it('renders compare and commit links for nested github remote', async () => {
+    exec('git remote add origin https://github.com/modulify/release/core/conventional.git')
+    exec('git commit -m "feat(parser): Added nested remote support" --allow-empty --no-gpg-sign')
+    const hash = lastHash()
+
+    const write = createWrite({
+      cwd,
+      types: [{ type: 'feat', section: 'Features' }],
+      context: {
+        linkCompare: true,
+        previousTag: 'v1.2.2',
+        currentTag: 'v1.2.3',
+      } as Partial<RenderContext>,
+    })
+
+    const result = await write('1.2.3')
+
+    expect(result).toContain(
+      'https://github.com/modulify/release/core/conventional/compare/v1.2.2...v1.2.3'
+    )
+    expect(result).toContain(
+      `https://github.com/modulify/release/core/conventional/commit/${hash}`
+    )
+  })
+
+  it('ignores remote URL without repository segment', async () => {
+    const render = vi.fn(() => 'Rendered changelog')
+
+    const write = createWrite({
+      git: {
+        url: async () => 'https://gitlab.com/modulify',
+        commits: async function * () {},
+      } as unknown as ChangelogOptions['git'],
+      render,
+    })
+
+    await write('1.2.3')
+
+    expect(render).toHaveBeenCalledWith(expect.not.objectContaining({
+      host: expect.any(String),
+      owner: expect.any(String),
+      repository: expect.any(String),
+    }))
+  })
+
+  it('ignores remote URL without network host', async () => {
+    const render = vi.fn(() => 'Rendered changelog')
+
+    const write = createWrite({
+      git: {
+        url: async () => 'file:///tmp/modulify/conventional.git',
+        commits: async function * () {},
+      } as unknown as ChangelogOptions['git'],
+      render,
+    })
+
+    await write('1.2.3')
+
+    expect(render).toHaveBeenCalledWith(expect.not.objectContaining({
+      host: expect.any(String),
+      owner: expect.any(String),
+      repository: expect.any(String),
+    }))
+  })
+
   it('removes temporary file on write failure', async () => {
     const dir = join(cwd, 'failing-output')
     const tmp = dir + '.tmp'

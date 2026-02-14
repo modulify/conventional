@@ -42,7 +42,7 @@ const reverts = (commit: Commit) => (revert: NonNullable<Commit['revert']>) => {
   return revert.header === commit.header
 }
 
-const MATCH_REPOSITORY_URL = /^(?:https?:\/\/|git@)([^:/]+)[:/]([^/]+)\/([^/.]+)(?:\.git)?$/
+const MATCH_SCP_REPOSITORY_URL = /^(?:[^@]+@)?([^:/]+):(.+)$/
 
 /**
  * Creates a write function.
@@ -144,11 +144,44 @@ export const createWrite = (options: ChangelogOptions = {}) => {
 }
 
 function urlToContext (url: string) {
-  const [matches, host, owner, repository] = MATCH_REPOSITORY_URL.exec(url) ?? []
+  const normalized = normalizeRepositoryLocation(url)
 
-  return matches ? {
-    host: host?.includes('github.com') ? 'https://github.com' : host,
+  if (!normalized) {
+    return undefined
+  }
+
+  const parts = normalized.path
+    .replace(/^\/+|\/+$/g, '')
+    .replace(/\.git$/, '')
+    .split('/')
+    .filter(Boolean)
+
+  if (parts.length < 2) {
+    return undefined
+  }
+
+  const repository = parts[parts.length - 1]
+  const owner = parts.slice(0, -1).join('/')
+
+  return {
+    host: normalized.host.includes('github.com') ? 'https://github.com' : normalized.host,
     owner,
     repository,
-  } : undefined
+  }
+}
+
+function normalizeRepositoryLocation (url: string) {
+  try {
+    const parsed = new URL(url)
+
+    return parsed.host && parsed.pathname
+      ? { host: parsed.host, path: parsed.pathname }
+      : undefined
+  } catch { /* empty */ }
+
+  const [, host, path] = MATCH_SCP_REPOSITORY_URL.exec(url) ?? []
+
+  return host && path
+    ? { host, path }
+    : undefined
 }
