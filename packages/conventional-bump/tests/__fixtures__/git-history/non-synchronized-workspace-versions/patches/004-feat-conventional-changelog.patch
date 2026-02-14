@@ -1,0 +1,6 @@
+diff --git a/packages/conventional-changelog/src/history.txt b/packages/conventional-changelog/src/history.txt
+--- a/packages/conventional-changelog/src/history.txt
++++ b/packages/conventional-changelog/src/history.txt
+@@ -1 +1,2 @@
+ seed: conventional-changelog
++feat: grouped sections added

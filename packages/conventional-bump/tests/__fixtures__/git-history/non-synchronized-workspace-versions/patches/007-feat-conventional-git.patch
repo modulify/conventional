@@ -1,0 +1,8 @@
+diff --git a/packages/conventional-git/src/history.txt b/packages/conventional-git/src/history.txt
+--- a/packages/conventional-git/src/history.txt
++++ b/packages/conventional-git/src/history.txt
+@@ -1,3 +1,4 @@
+ seed: conventional-git
+ fix: parser state stabilized
+ feat: range helpers added
++feat: workspace range overrides added

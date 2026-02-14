@@ -17,6 +17,10 @@ export type ReleaseRecommendation = {
   type: ReleaseType
   reason: string
 }
+export type AdvisoryRangeOptions = {
+  fromTag?: string
+  tagPrefix?: string | RegExp
+}
 
 export const DEFAULT_COMMIT_TYPES = Object.freeze(([
   { type: 'feat', section: 'Features' },
@@ -71,15 +75,19 @@ export class ReleaseAdvisor {
    * @param options.ignoreReverted - When true, ignore commits that were reverted later. Defaults to true.
    * @param options.preMajor - If true, downgrade major to minor and minor to patch for pre-1.0.0 releases.
    * @param options.strict - If true, return null when there are no meaningful changes.
+   * @param options.fromTag - Explicit tag to use as lower commit boundary.
+   * @param options.tagPrefix - Tag prefix or pattern to discover boundary within a specific tag line.
    * @returns Release recommendation or null when nothing should be released (only in strict mode).
    */
-  async advise ({ ignore, ignoreReverted = true, preMajor = false, strict = false }: {
+  async advise ({ ignore, ignoreReverted = true, preMajor = false, strict = false, fromTag, tagPrefix }: AdvisoryRangeOptions & {
     ignore?: (commit: Commit) => boolean;
     ignoreReverted?: boolean;
     preMajor?: boolean;
     strict?: boolean;
   } = {}): Promise<ReleaseRecommendation | null> {
-    const last = await this.git.tags().first()
+    const last = fromTag ?? await this.git.tags({
+      ...tagPrefix && { prefix: tagPrefix },
+    }).first()
     const commits = this.git.commits({
       ...last && { from: last },
       parse: this.parse,
@@ -136,7 +144,7 @@ export class ReleaseAdvisor {
     }
   }
 
-  async next (version: string, options: {
+  async next (version: string, options: AdvisoryRangeOptions & {
     type?: SemverReleaseType,
     prerelease?: 'alpha' | 'beta' | 'rc',
     ignore?: (commit: Commit) => boolean;
@@ -153,6 +161,8 @@ export class ReleaseAdvisor {
       ignoreReverted: options.ignoreReverted,
       preMajor: options.preMajor ?? (semver.valid(version, options.loose) ? semver.lt(version, '1.0.0', options.loose) : false),
       strict: options.strict,
+      fromTag: options.fromTag,
+      tagPrefix: options.tagPrefix,
     })
 
     const type = isKnown(recommendation?.type)

@@ -1,0 +1,6 @@
+diff --git a/packages/conventional-git/src/history.txt b/packages/conventional-git/src/history.txt
+--- a/packages/conventional-git/src/history.txt
++++ b/packages/conventional-git/src/history.txt
+@@ -1 +1,2 @@
+ seed: conventional-git
++fix: parser state stabilized

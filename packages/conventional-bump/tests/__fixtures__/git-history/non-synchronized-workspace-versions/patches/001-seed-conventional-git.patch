@@ -1,0 +1,6 @@
+diff --git a/packages/conventional-git/src/history.txt b/packages/conventional-git/src/history.txt
+new file mode 100644
+--- /dev/null
++++ b/packages/conventional-git/src/history.txt
+@@ -0,0 +1 @@
++seed: conventional-git

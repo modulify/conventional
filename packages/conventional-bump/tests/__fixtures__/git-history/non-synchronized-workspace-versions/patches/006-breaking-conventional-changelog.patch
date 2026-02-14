@@ -1,0 +1,7 @@
+diff --git a/packages/conventional-changelog/src/history.txt b/packages/conventional-changelog/src/history.txt
+--- a/packages/conventional-changelog/src/history.txt
++++ b/packages/conventional-changelog/src/history.txt
+@@ -1,2 +1,3 @@
+ seed: conventional-changelog
+ feat: grouped sections added
++feat!: render contract changed

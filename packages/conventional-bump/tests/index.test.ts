@@ -1,4 +1,7 @@
+import type { Commit } from '@modulify/conventional-git/types/commit'
+
 import { ReleaseAdvisor } from '@/index'
+import { applyGitFixture } from '~tests/helpers/git-fixture'
 
 import {
   afterEach,
@@ -56,6 +59,17 @@ describe('ReleaseAdvisor', () => {
     fields: {},
     meta: {},
     ...overrides,
+  })
+
+  const createTagStream = (tags: string[]) => ({
+    async first () {
+      return tags[0] ?? null
+    },
+    async * [Symbol.asyncIterator] () {
+      for (const tag of tags) {
+        yield tag
+      }
+    },
   })
 
   const createGit = (history: ReturnType<typeof commit>[]) => ({
@@ -232,6 +246,281 @@ describe('ReleaseAdvisor', () => {
     expect(await advisor.advise({ strict: true })).toEqual(
       expect.objectContaining({ type: 'minor' })
     )
+  })
+
+  describe('multi-tag advisory range', () => {
+    it('prioritizes fromTag over discovered tags', async () => {
+      const calls = {
+        tags: 0,
+        commits: [] as Array<Record<string, unknown>>,
+      }
+
+      const git = {
+        tags: () => {
+          calls.tags += 1
+
+          return createTagStream([ 'pkg-a@2.0.0' ])
+        },
+        commits: async function * (options: Record<string, unknown> = {}) {
+          calls.commits.push(options)
+
+          yield commit({
+            type: 'feat',
+            header: 'feat: Added feature',
+            subject: 'Added feature',
+          })
+        },
+      }
+
+      const advisor = new ReleaseAdvisor({
+        git: git as unknown as ReleaseAdvisorOptions['git'],
+      })
+
+      expect(await advisor.advise({
+        fromTag: 'pkg-b@1.4.0',
+      })).toEqual(expect.objectContaining({
+        type: 'minor',
+      }))
+
+      expect(calls.tags).toBe(0)
+      expect(calls.commits).toHaveLength(1)
+      expect(calls.commits[0]).toEqual(expect.objectContaining({
+        from: 'pkg-b@1.4.0',
+      }))
+    })
+
+    it('uses tagPrefix to isolate a workspace tag line', async () => {
+      const tags = [
+        'pkg-a@2.0.0',
+        'pkg-b@1.4.0',
+        'pkg-a@1.9.0',
+      ]
+
+      const calls = {
+        tagOptions: [] as unknown[],
+        commits: [] as Array<Record<string, unknown>>,
+      }
+
+      const git = {
+        tags: (options?: { prefix?: string | RegExp; }) => {
+          calls.tagOptions.push(options)
+          const prefix = options?.prefix
+
+          if (!prefix) {
+            return createTagStream(tags)
+          }
+
+          const filtered = tags.filter((tag) => typeof prefix === 'string'
+            ? tag.startsWith(prefix)
+            : prefix.test(tag))
+
+          return createTagStream(filtered)
+        },
+        commits: async function * (options: Record<string, unknown> = {}) {
+          calls.commits.push(options)
+
+          yield commit({
+            type: 'feat',
+            header: 'feat: Added feature',
+            subject: 'Added feature',
+          })
+        },
+      }
+
+      const advisor = new ReleaseAdvisor({
+        git: git as unknown as ReleaseAdvisorOptions['git'],
+      })
+
+      expect(await advisor.advise({
+        tagPrefix: 'pkg-b@',
+      })).toEqual(expect.objectContaining({
+        type: 'minor',
+      }))
+
+      expect(calls.tagOptions).toHaveLength(1)
+      expect(calls.tagOptions[0]).toEqual(expect.objectContaining({
+        prefix: 'pkg-b@',
+      }))
+      expect(calls.commits[0]).toEqual(expect.objectContaining({
+        from: 'pkg-b@1.4.0',
+      }))
+    })
+
+    it('supports regexp tagPrefix for grouped tag lines', async () => {
+      const prefix = /^(?:core|shared)@/
+      const tags = [
+        'ui@2.0.0',
+        'shared@1.2.0',
+        'core@1.1.0',
+      ]
+
+      const calls = {
+        tagOptions: [] as unknown[],
+        commits: [] as Array<Record<string, unknown>>,
+      }
+
+      const git = {
+        tags: (options?: { prefix?: string | RegExp; }) => {
+          calls.tagOptions.push(options)
+          const prefix = options?.prefix
+
+          if (!prefix) {
+            return createTagStream(tags)
+          }
+
+          const filtered = tags.filter((tag) => typeof prefix === 'string'
+            ? tag.startsWith(prefix)
+            : prefix.test(tag))
+
+          return createTagStream(filtered)
+        },
+        commits: async function * (options: Record<string, unknown> = {}) {
+          calls.commits.push(options)
+
+          yield commit({
+            type: 'fix',
+            header: 'fix: Fixed issue',
+            subject: 'Fixed issue',
+          })
+        },
+      }
+
+      const advisor = new ReleaseAdvisor({
+        git: git as unknown as ReleaseAdvisorOptions['git'],
+      })
+
+      expect(await advisor.advise({
+        tagPrefix: prefix,
+      })).toEqual(expect.objectContaining({
+        type: 'patch',
+      }))
+
+      expect(calls.tagOptions[0]).toEqual(expect.objectContaining({
+        prefix,
+      }))
+      expect(calls.commits[0]).toEqual(expect.objectContaining({
+        from: 'shared@1.2.0',
+      }))
+    })
+
+    it('falls back to full history when tagPrefix has no matches', async () => {
+      const tags = [ 'pkg-a@2.0.0' ]
+
+      const calls = {
+        commits: [] as Array<Record<string, unknown>>,
+      }
+
+      const git = {
+        tags: (options?: { prefix?: string | RegExp; }) => {
+          const prefix = options?.prefix
+
+          if (!prefix) {
+            return createTagStream(tags)
+          }
+
+          const filtered = tags.filter((tag) => typeof prefix === 'string'
+            ? tag.startsWith(prefix)
+            : prefix.test(tag))
+
+          return createTagStream(filtered)
+        },
+        commits: async function * (options: Record<string, unknown> = {}) {
+          calls.commits.push(options)
+
+          yield commit({
+            type: 'feat',
+            header: 'feat: Added feature',
+            subject: 'Added feature',
+          })
+        },
+      }
+
+      const advisor = new ReleaseAdvisor({
+        git: git as unknown as ReleaseAdvisorOptions['git'],
+      })
+
+      await advisor.advise({
+        tagPrefix: 'pkg-b@',
+      })
+
+      expect(calls.commits[0]).not.toHaveProperty('from')
+    })
+
+    it('forwards fromTag into next() recommendation flow', async () => {
+      const calls = {
+        commits: [] as Array<Record<string, unknown>>,
+      }
+
+      const git = {
+        tags: () => createTagStream([ 'pkg-a@2.0.0' ]),
+        commits: async function * (options: Record<string, unknown> = {}) {
+          calls.commits.push(options)
+
+          yield commit({
+            type: 'feat',
+            header: 'feat: Added feature',
+            subject: 'Added feature',
+          })
+        },
+      }
+
+      const advisor = new ReleaseAdvisor({
+        git: git as unknown as ReleaseAdvisorOptions['git'],
+      })
+
+      expect(await advisor.next('1.0.0', {
+        fromTag: 'pkg-b@1.4.0',
+      })).toEqual(expect.objectContaining({
+        type: 'minor',
+        version: '1.1.0',
+      }))
+
+      expect(calls.commits).toHaveLength(1)
+      expect(calls.commits[0]).toEqual(expect.objectContaining({
+        from: 'pkg-b@1.4.0',
+      }))
+    })
+
+    it('handles non-synchronized workspace versions with fixture history', async () => {
+      const advisor = new ReleaseAdvisor({ cwd })
+
+      applyGitFixture({
+        cwd,
+        fixture: 'non-synchronized-workspace-versions',
+      })
+
+      const onlyWorkspace = (workspace: string) => (c: Commit) => c.scope !== workspace
+
+      expect(await advisor.advise({
+        tagPrefix: 'conventional-git@',
+        ignore: onlyWorkspace('conventional-git'),
+      })).toEqual(expect.objectContaining({
+        type: 'minor',
+      }))
+
+      expect(await advisor.next('3.2.0', {
+        tagPrefix: 'conventional-git@',
+        ignore: onlyWorkspace('conventional-git'),
+      })).toEqual(expect.objectContaining({
+        type: 'minor',
+        version: '3.3.0',
+      }))
+
+      expect(await advisor.advise({
+        tagPrefix: 'conventional-changelog@',
+        ignore: onlyWorkspace('conventional-changelog'),
+      })).toEqual(expect.objectContaining({
+        type: 'major',
+      }))
+
+      expect(await advisor.next('1.5.0', {
+        tagPrefix: 'conventional-changelog@',
+        ignore: onlyWorkspace('conventional-changelog'),
+      })).toEqual(expect.objectContaining({
+        type: 'major',
+        version: '2.0.0',
+      }))
+    })
   })
 
   describe('next', () => {

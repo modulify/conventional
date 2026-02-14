@@ -1,0 +1,35 @@
+{
+  "description": "Interleaved workspace history with independent tag lines",
+  "steps": [
+    {
+      "patch": "patches/001-seed-conventional-git.patch",
+      "message": "chore(conventional-git): Seed line",
+      "tags": ["conventional-git@3.2.0"]
+    },
+    {
+      "patch": "patches/002-seed-conventional-changelog.patch",
+      "message": "chore(conventional-changelog): Seed line",
+      "tags": ["conventional-changelog@1.5.0"]
+    },
+    {
+      "patch": "patches/003-fix-conventional-git.patch",
+      "message": "fix(conventional-git): Stabilized parser state"
+    },
+    {
+      "patch": "patches/004-feat-conventional-changelog.patch",
+      "message": "feat(conventional-changelog): Added grouped sections"
+    },
+    {
+      "patch": "patches/005-feat-conventional-git.patch",
+      "message": "feat(conventional-git): Added range helpers"
+    },
+    {
+      "patch": "patches/006-breaking-conventional-changelog.patch",
+      "message": "feat(conventional-changelog)!: Changed render contracts"
+    },
+    {
+      "patch": "patches/007-feat-conventional-git.patch",
+      "message": "feat(conventional-git): Added workspace range overrides"
+    }
+  ]
+}
