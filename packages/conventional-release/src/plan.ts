@@ -13,6 +13,7 @@ import type {
 
 import type { Runtime } from './runtime'
 
+import { Client as GitClient } from '@modulify/conventional-git'
 import { execFileSync } from 'node:child_process'
 import { read } from '@modulify/pkg'
 import { relative } from 'node:path'
@@ -66,28 +67,58 @@ export async function discover (
     ),
     runtime.cwd
   )
-  const affectedPaths = detectAffectedPackages(runtime.cwd, root, discovered)
-  const affected = sortPackages(
-    uniquePackages(
-      discovered.filter((pkg) => affectedPaths.has(pkg.path))
-    ),
-    runtime.cwd
-  )
   const mode = options.mode ?? DEFAULT_RELEASE_MODE
-  const slices = createSlices({
-    mode,
-    packages: discovered,
-    affected,
-    cwd: runtime.cwd,
-    fromTag: options.fromTag,
-    tagPrefix: options.tagPrefix,
-    partitions: options.partitions,
-  })
+  const git = new GitClient({ cwd: runtime.cwd })
+  const affectedPaths = mode === 'hybrid'
+    ? null
+    : await detectAffectedPackages({
+      cwd: runtime.cwd,
+      root,
+      packages: discovered,
+      git,
+      range: {
+        fromTag: options.fromTag,
+        tagPrefix: options.tagPrefix,
+      },
+    })
+  const affected = affectedPaths
+    ? sortPackages(
+      uniquePackages(
+        discovered.filter((pkg) => affectedPaths.has(pkg.path))
+      ),
+      runtime.cwd
+    )
+    : [] as Package[]
+  const slices = mode === 'hybrid'
+    ? await createHybridSlices({
+      root,
+      packages: discovered,
+      cwd: runtime.cwd,
+      git,
+      fromTag: options.fromTag,
+      tagPrefix: options.tagPrefix,
+      partitions: options.partitions,
+    })
+    : createSlices({
+      mode,
+      affected,
+      cwd: runtime.cwd,
+      fromTag: options.fromTag,
+      tagPrefix: options.tagPrefix,
+    })
+  const discoveredAffected = mode === 'hybrid'
+    ? sortPackages(
+      uniquePackages(
+        slices.flatMap((slice) => slice.packages)
+      ),
+      runtime.cwd
+    )
+    : affected
 
   return {
     mode,
     packages: discovered,
-    affected,
+    affected: discoveredAffected,
     slices,
   }
 }
@@ -145,22 +176,18 @@ export function packageIdentity (pkg: Package, cwd: string) {
 
 function createSlices ({
   mode,
-  packages,
   affected,
   cwd,
   fromTag,
   tagPrefix,
-  partitions,
 }: {
-  mode: Mode
-  packages: Package[]
+  mode: SliceMode
   affected: Package[]
   cwd: string
   fromTag?: string
   tagPrefix?: string | RegExp
-  partitions?: Record<string, Partition>
 }): DiscoveredSlice[] {
-  const touched = affected.length ? affected : packages
+  const touched = affected
 
   if (mode === 'sync') {
     return touched.length
@@ -177,48 +204,38 @@ function createSlices ({
       : [] as DiscoveredSlice[]
   }
 
-  if (mode === 'async') {
-    return touched.map((pkg) => ({
-      id: `async:${packageIdentity(pkg, cwd)}`,
-      kind: 'async',
-      mode: 'async',
-      packages: [pkg],
-      range: {
-        fromTag,
-        tagPrefix,
-      },
-    }))
-  }
-
-  return createHybridSlices({
-    packages,
-    touched,
-    cwd,
-    fromTag,
-    tagPrefix,
-    partitions,
-  })
+  return touched.map((pkg) => ({
+    id: `async:${packageIdentity(pkg, cwd)}`,
+    kind: 'async',
+    mode: 'async',
+    packages: [pkg],
+    range: {
+      fromTag,
+      tagPrefix,
+    },
+  }))
 }
 
-function createHybridSlices ({
+async function createHybridSlices ({
+  root,
   packages,
-  touched,
   cwd,
+  git,
   fromTag,
   tagPrefix,
   partitions,
 }: {
+  root: Package
   packages: Package[]
-  touched: Package[]
   cwd: string
+  git: GitClient
   fromTag?: string
   tagPrefix?: string | RegExp
   partitions?: Record<string, Partition>
-}): DiscoveredSlice[] {
+}): Promise<DiscoveredSlice[]> {
   const partitionEntries = Object.entries(partitions ?? {})
     .sort(([a], [b]) => a.localeCompare(b))
   const partitioned = [] as DiscoveredSlice[]
-  const touchedPaths = new Set(touched.map((pkg) => pkg.path))
   const usedPaths = new Set<string>()
 
   for (const [partition, definition] of partitionEntries) {
@@ -237,7 +254,14 @@ function createHybridSlices ({
       usedPaths.add(pkg.path)
     }
 
-    const scoped = matched.filter((pkg) => touchedPaths.has(pkg.path))
+    const affectedPaths = await detectAffectedPackages({
+      cwd,
+      root,
+      packages: matched,
+      git,
+      range: resolvePartitionRange({ fromTag, tagPrefix, partition: definition }),
+    })
+    const scoped = matched.filter((pkg) => affectedPaths.has(pkg.path))
 
     if (!scoped.length) {
       continue
@@ -267,10 +291,21 @@ function createHybridSlices ({
     } satisfies DiscoveredSlice)))
   }
 
-  const remainder = sortPackages(
-    packages.filter((pkg) => !usedPaths.has(pkg.path) && touchedPaths.has(pkg.path)),
+  const fallbackCandidates = sortPackages(
+    packages.filter((pkg) => !usedPaths.has(pkg.path)),
     cwd
   )
+  const fallbackPaths = await detectAffectedPackages({
+    cwd,
+    root,
+    packages: fallbackCandidates,
+    git,
+    range: {
+      fromTag,
+      tagPrefix,
+    },
+  })
+  const remainder = fallbackCandidates.filter((pkg) => fallbackPaths.has(pkg.path))
   const fallback = remainder.map((pkg) => ({
     id: `hybrid:${packageIdentity(pkg, cwd)}`,
     kind: 'async' as const,
@@ -300,12 +335,24 @@ function resolvePartitionRange ({
   }
 }
 
-function detectAffectedPackages (
-  cwd: string,
-  root: Package,
+async function detectAffectedPackages ({
+  cwd,
+  root,
+  packages,
+  git,
+  range,
+}: {
+  cwd: string
+  root: Package
   packages: Package[]
-) {
-  const touched = readWorkingTreePaths(cwd)
+  git: GitClient
+  range: Range
+}) {
+  const touched = await readCommitRangePaths(cwd, git, range)
+
+  if (touched === null) {
+    return new Set(packages.map((pkg) => pkg.path))
+  }
 
   if (!touched.length) {
     return new Set<string>()
@@ -402,9 +449,19 @@ function matchesGlob (input: string, pattern: string) {
   return new RegExp(`^${escaped}$`).test(input)
 }
 
-function readWorkingTreePaths (cwd: string) {
+async function readCommitRangePaths (
+  cwd: string,
+  git: GitClient,
+  range: Range
+) {
   try {
-    const output = execFileSync('git', ['status', '--porcelain'], {
+    const fromTag = range.fromTag ?? await git.tags({
+      ...range.tagPrefix && { prefix: range.tagPrefix },
+    }).first()
+    const revision = fromTag
+      ? `${fromTag}..HEAD`
+      : 'HEAD'
+    const output = execFileSync('git', ['log', '--name-status', '--format=', '--find-renames', revision], {
       cwd,
       encoding: 'utf-8',
       stdio: 'pipe',
@@ -416,19 +473,19 @@ function readWorkingTreePaths (cwd: string) {
 
     return output
       .split('\n')
+      .filter(Boolean)
       .flatMap((line) => {
-        const payload = line.slice(3).trim()
+        const payload = line.trim()
+        const parts = payload.split('\t').filter(Boolean)
 
-        if (payload.includes(' -> ')) {
-          const [from, to] = payload.split(' -> ')
-
-          return [from, to].filter(Boolean)
+        if (parts.length >= 3 && /^[RC]/.test(parts[0]!)) {
+          return parts.slice(1)
         }
 
-        return [payload].filter(Boolean)
+        return parts.slice(1)
       })
   } catch {
-    return [] as string[]
+    return null
   }
 }
 

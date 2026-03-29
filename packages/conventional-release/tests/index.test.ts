@@ -630,7 +630,7 @@ describe('runRelease', () => {
     expect(result.slices.find((slice) => slice.id === 'partition:core:@scope/a')?.tag).toBe('core@1.0.1')
   })
 
-  it('falls back to all packages when changed files are outside release root path', async () => {
+  it('returns unchanged when commits do not touch the release root path', async () => {
     const cwd = createTemporaryDirectory()
 
     try {
@@ -640,8 +640,10 @@ describe('runRelease', () => {
       writeFileSync(join(cwd, 'docs/README.md'), 'outside root')
       exec('git add docs/README.md')
       exec('git commit -m "docs: Added external docs" --no-gpg-sign')
-
+      exec('git tag v1.0.0')
       writeFileSync(join(cwd, 'docs/README.md'), 'outside root changed')
+      exec('git add docs/README.md')
+      exec('git commit -m "docs: Updated external docs" --no-gpg-sign')
 
       const root = createPackage({
         name: '@scope/release-root',
@@ -679,9 +681,8 @@ describe('runRelease', () => {
         mode: 'sync',
       })
 
-      expect(result.changed).toBe(true)
-      expect(pkgState.updates).toHaveLength(1)
-      expect(pkgState.updates[0]?.path).toBe(join(cwd, 'packages/release-root'))
+      expect(result.changed).toBe(false)
+      expect(pkgState.updates).toHaveLength(0)
     } finally {
       rmSync(cwd, { recursive: true, force: true })
     }
@@ -836,6 +837,57 @@ describe('createReleaseScope', () => {
     expect(runtime.write).not.toHaveBeenCalled()
     expect(runtime.sh.exec).not.toHaveBeenCalled()
     expect(runtime.git.add).not.toHaveBeenCalled()
+  })
+
+  it('creates async scope from commits since the latest prefixed tag', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'conventional-release-plan-async-tagprefix-'))
+    const exec = (command: string) => execSync(command, {
+      cwd,
+      encoding: 'utf-8',
+      stdio: 'pipe',
+    })
+
+    try {
+      mkdirSync(join(cwd, 'git-templates'))
+      mkdirSync(join(cwd, 'packages/a'), { recursive: true })
+      mkdirSync(join(cwd, 'packages/b'), { recursive: true })
+
+      writeFileSync(join(cwd, 'package.json'), JSON.stringify({
+        name: 'fixture-release-root',
+        version: '1.0.0',
+        workspaces: ['packages/*'],
+      }, null, 2))
+      writeFileSync(join(cwd, 'packages/a/package.json'), JSON.stringify({
+        name: '@fixture/a',
+        version: '1.0.0',
+      }, null, 2))
+      writeFileSync(join(cwd, 'packages/b/package.json'), JSON.stringify({
+        name: '@fixture/b',
+        version: '1.0.0',
+      }, null, 2))
+
+      exec('git init --template=./git-templates --initial-branch=main')
+      exec('git config user.name "Tester"')
+      exec('git config user.email "tester.modulify@gmail.com"')
+      exec('git add package.json packages/a/package.json packages/b/package.json')
+      exec('git commit -m "feat: Added workspace packages" --no-gpg-sign')
+      exec('git tag root@1.0.0')
+
+      writeFileSync(join(cwd, 'packages/b/notes.md'), 'changed package b')
+      exec('git add packages/b/notes.md')
+      exec('git commit -m "docs: Updated package b notes" --no-gpg-sign')
+
+      const scope = await createReleaseScope({
+        cwd,
+        mode: 'async',
+        tagPrefix: 'root@',
+      })
+
+      expect(scope.affected.map((pkg) => pkg.path)).toEqual(['packages/b'])
+      expect(scope.slices.map((slice) => slice.id)).toEqual(['async:@fixture/b'])
+    } finally {
+      rmSync(cwd, { recursive: true, force: true })
+    }
   })
 
   it('creates scope with runtime when options are omitted', async () => {
@@ -1192,7 +1244,10 @@ describe('createReleaseScope', () => {
 
       exec('git add package.json packages/a/package.json')
       exec('git commit -m "feat: Added workspace package" --no-gpg-sign')
+      exec('git tag v1.0.0')
       writeFileSync(join(cwd, 'README.md'), 'changed root file')
+      exec('git add README.md')
+      exec('git commit -m "docs: Updated root readme" --no-gpg-sign')
 
       const scope = await createReleaseScope({
         cwd,
@@ -1536,7 +1591,7 @@ describe('createReleaseRuntime', () => {
     }
   })
 
-  it('updates only affected packages for sync mode based on working tree', async () => {
+  it('updates only affected packages for sync mode based on commits since the last tag', async () => {
     const cwd = mkdtempSync(join(tmpdir(), 'conventional-release-sync-affected-'))
     const exec = (command: string) => execSync(command, {
       cwd,
@@ -1571,8 +1626,10 @@ describe('createReleaseRuntime', () => {
       exec('git config user.email "tester.modulify@gmail.com"')
       exec('git add package.json packages/a/package.json packages/b/package.json')
       exec('git commit -m "feat: Added workspace packages" --no-gpg-sign')
-
-      writeFileSync(join(cwd, 'packages/b/notes.md'), '# changed in working tree')
+      exec('git tag v1.0.0')
+      writeFileSync(join(cwd, 'packages/b/notes.md'), '# changed in history')
+      exec('git add packages/b/notes.md')
+      exec('git commit -m "docs: Updated package b notes" --no-gpg-sign')
 
       const result = await runRelease({
         cwd,
@@ -1590,7 +1647,7 @@ describe('createReleaseRuntime', () => {
     }
   })
 
-  it('updates root package when only root files are changed in sync mode', async () => {
+  it('updates root package when only root files changed since the last tag', async () => {
     const cwd = mkdtempSync(join(tmpdir(), 'conventional-release-sync-root-'))
     const exec = (command: string) => execSync(command, {
       cwd,
@@ -1617,8 +1674,10 @@ describe('createReleaseRuntime', () => {
       exec('git config user.email "tester.modulify@gmail.com"')
       exec('git add package.json packages/feature/package.json')
       exec('git commit -m "feat: Added workspace packages" --no-gpg-sign')
-
+      exec('git tag v1.0.0')
       writeFileSync(join(cwd, 'README.md'), 'changed root file')
+      exec('git add README.md')
+      exec('git commit -m "docs: Updated root readme" --no-gpg-sign')
 
       const result = await runRelease({
         cwd,
@@ -1635,7 +1694,50 @@ describe('createReleaseRuntime', () => {
     }
   })
 
-  it('detects renamed files in working tree for affected package resolution', async () => {
+  it('returns unchanged when no commits were made after the latest tag', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'conventional-release-sync-no-commits-'))
+    const exec = (command: string) => execSync(command, {
+      cwd,
+      encoding: 'utf-8',
+      stdio: 'pipe',
+    })
+
+    try {
+      mkdirSync(join(cwd, 'git-templates'))
+      mkdirSync(join(cwd, 'packages/feature'), { recursive: true })
+
+      writeFileSync(join(cwd, 'package.json'), JSON.stringify({
+        name: 'fixture-release-root',
+        version: '1.0.0',
+        workspaces: ['packages/*'],
+      }, null, 2))
+      writeFileSync(join(cwd, 'packages/feature/package.json'), JSON.stringify({
+        name: '@fixture/feature',
+        version: '1.0.0',
+      }, null, 2))
+
+      exec('git init --template=./git-templates --initial-branch=main')
+      exec('git config user.name "Tester"')
+      exec('git config user.email "tester.modulify@gmail.com"')
+      exec('git add package.json packages/feature/package.json')
+      exec('git commit -m "feat: Added workspace packages" --no-gpg-sign')
+      exec('git tag v1.0.0')
+
+      const result = await runRelease({
+        cwd,
+        dry: true,
+        mode: 'sync',
+      })
+
+      expect(result.changed).toBe(false)
+      expect(result.slices).toEqual([])
+      expect(result.files).toEqual([])
+    } finally {
+      rmSync(cwd, { recursive: true, force: true })
+    }
+  })
+
+  it('detects renamed files in commit history for affected package resolution', async () => {
     const cwd = mkdtempSync(join(tmpdir(), 'conventional-release-sync-rename-'))
     const exec = (command: string) => execSync(command, {
       cwd,
@@ -1663,8 +1765,9 @@ describe('createReleaseRuntime', () => {
       exec('git config user.email "tester.modulify@gmail.com"')
       exec('git add package.json packages/feature/package.json packages/feature/old.txt')
       exec('git commit -m "feat: Added workspace packages" --no-gpg-sign')
-
+      exec('git tag v1.0.0')
       exec('git mv packages/feature/old.txt packages/feature/new.txt')
+      exec('git commit -m "refactor: Renamed workspace file" --no-gpg-sign')
 
       const result = await runRelease({
         cwd,

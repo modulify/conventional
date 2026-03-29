@@ -40,6 +40,7 @@
   "dependencies": {
     "@modulify/conventional-bump": "^0.0.0",
     "@modulify/conventional-changelog": "^0.0.0",
+    "@modulify/conventional-git": "^0.0.0",
     "@modulify/git-toolkit": "^0.0.2",
     "@modulify/pkg": "^1.0.1",
     "chalk": "^5.6.2",

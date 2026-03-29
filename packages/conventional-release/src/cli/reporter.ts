@@ -93,11 +93,12 @@ class SummaryReporter implements Reporter {
 
     const changed = result.slices.filter((slice) => slice.changed)
     const primary = changed[0]
+    const packages = collectPackages(changed)
 
     this.output.success('Release slices: %s', [String(changed.length)])
+    this.output.success('Updated packages: %s', [String(packages.length)])
 
     if (primary) {
-      this.output.success('Packages: %s', [describePackages(primary.packages)])
       this.output.success('Next version: %s', [primary.nextVersion])
     }
 
@@ -180,6 +181,18 @@ class DetailedReporter extends SummaryReporter {
       this.output.info('Tag: %s', [slice.tag])
     }
   }
+
+  async onSuccess (result: Result) {
+    await super.onSuccess(result)
+
+    if (!result.changed) {
+      return
+    }
+
+    const packages = collectPackages(result.slices.filter((slice) => slice.changed))
+
+    this.output.info('Updated packages: %s', [describePackages(packages)])
+  }
 }
 
 function describeSlice (slice: Slice | SliceResult) {
@@ -200,4 +213,24 @@ function collectTags (slices: SliceResult[]) {
   return slices
     .map((slice) => slice.tag)
     .filter((tag): tag is string => !!tag)
+}
+
+function collectPackages (slices: SliceResult[]) {
+  const packages = [] as ScopePackage[]
+  const seen = new Set<string>()
+
+  for (const slice of slices) {
+    for (const pkg of slice.packages) {
+      const identity = pkg.name ?? pkg.path
+
+      if (seen.has(identity)) {
+        continue
+      }
+
+      seen.add(identity)
+      packages.push(pkg)
+    }
+  }
+
+  return packages
 }
