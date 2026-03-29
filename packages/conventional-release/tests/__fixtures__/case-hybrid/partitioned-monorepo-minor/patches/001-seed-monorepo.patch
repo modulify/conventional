@@ -1,0 +1,49 @@
+diff --git a/package.json b/package.json
+new file mode 100644
+--- /dev/null
++++ b/package.json
+@@ -0,0 +1,8 @@
++{
++  "name": "fixture-release-root",
++  "version": "1.0.0",
++  "private": true,
++  "workspaces": [
++    "packages/*"
++  ]
++}
+diff --git a/packages/app/package.json b/packages/app/package.json
+new file mode 100644
+--- /dev/null
++++ b/packages/app/package.json
+@@ -0,0 +1,4 @@
++{
++  "name": "@fixture/app",
++  "version": "1.0.0"
++}
+diff --git a/packages/plugin-a/package.json b/packages/plugin-a/package.json
+new file mode 100644
+--- /dev/null
++++ b/packages/plugin-a/package.json
+@@ -0,0 +1,4 @@
++{
++  "name": "@fixture/plugin-a",
++  "version": "1.0.0"
++}
+diff --git a/packages/web/package.json b/packages/web/package.json
+new file mode 100644
+--- /dev/null
++++ b/packages/web/package.json
+@@ -0,0 +1,4 @@
++{
++  "name": "@fixture/web",
++  "version": "1.0.0"
++}
+diff --git a/packages/worker/package.json b/packages/worker/package.json
+new file mode 100644
+--- /dev/null
++++ b/packages/worker/package.json
+@@ -0,0 +1,4 @@
++{
++  "name": "@fixture/worker",
++  "version": "1.0.0"
++}

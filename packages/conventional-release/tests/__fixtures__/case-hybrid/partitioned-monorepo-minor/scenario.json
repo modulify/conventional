@@ -1,0 +1,14 @@
+{
+  "description": "Hybrid release scope with sync partition, async partition, and async fallback package",
+  "steps": [
+    {
+      "patch": "patches/001-seed-monorepo.patch",
+      "message": "chore: Seed monorepo packages",
+      "tags": ["v1.0.0"]
+    },
+    {
+      "patch": "patches/002-touch-partitions.patch",
+      "message": "chore: Update partitioned packages"
+    }
+  ]
+}

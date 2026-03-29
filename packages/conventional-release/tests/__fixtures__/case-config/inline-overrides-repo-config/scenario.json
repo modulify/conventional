@@ -1,0 +1,18 @@
+{
+  "description": "Inline runRelease config overrides file and package config",
+  "steps": [
+    {
+      "patch": "patches/001-seed-package.patch",
+      "message": "chore: Seed package config",
+      "tags": ["v0.1.0"]
+    },
+    {
+      "patch": "patches/002-add-release-file.patch",
+      "message": "chore: Added release config file"
+    },
+    {
+      "patch": "patches/003-chore-change.patch",
+      "message": "chore: Added non-feature change"
+    }
+  ]
+}

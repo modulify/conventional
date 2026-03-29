@@ -1,0 +1,14 @@
+{
+  "description": "Single package release with releaseAs=major from package.json",
+  "steps": [
+    {
+      "patch": "patches/001-seed-package.patch",
+      "message": "chore: Seed package manifest",
+      "tags": ["v0.1.0"]
+    },
+    {
+      "patch": "patches/002-chore-change.patch",
+      "message": "chore: Added repository metadata"
+    }
+  ]
+}

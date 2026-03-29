@@ -1,0 +1,9 @@
+diff --git a/release.config.mjs b/release.config.mjs
+new file mode 100644
+--- /dev/null
++++ b/release.config.mjs
+@@ -0,0 +1,4 @@
++export default {
++  mode: 'sync',
++  releaseAs: 'minor',
++}

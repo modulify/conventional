@@ -1,0 +1,6 @@
+diff --git a/docs/config-notes.txt b/docs/config-notes.txt
+new file mode 100644
+--- /dev/null
++++ b/docs/config-notes.txt
+@@ -0,0 +1 @@
++config: override-ready
