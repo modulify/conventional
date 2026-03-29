@@ -8,6 +8,8 @@ export default [
       '.yarn/**',
       '.pnp.*',
       'coverage/**',
+      'packages/*/bin/**',
+      'packages/*/*.timestamp-*.mjs',
       'packages/*/dist/**',
     ],
   },

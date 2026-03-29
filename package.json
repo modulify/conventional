@@ -14,12 +14,10 @@
     "@modulify/conventional-bump": "^0.0.0",
     "@modulify/conventional-changelog": "^0.0.0",
     "@modulify/conventional-git": "^0.0.0",
+    "@modulify/conventional-release": "^0.0.0",
     "@modulify/git-toolkit": "^0.0.2",
     "@modulify/pkg": "^1.0.1",
-    "chalk": "^5.6.2",
-    "figures": "^6.1.0",
-    "semver": "^7.7.3",
-    "yargs": "^17.7.2"
+    "semver": "^7.7.3"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.4.1",
@@ -47,8 +45,8 @@
     "commitlint:edit": "commitlint --edit",
     "eslint": "eslint .",
     "peers:check": "bash ./scripts/check-peers.sh",
-    "release": "tsx scripts/release.ts",
-    "release:dry": "yarn release --dry",
+    "release": "conventional-release",
+    "release:dry": "conventional-release --dry",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "yarn workspaces foreach -A run typecheck",
