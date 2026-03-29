@@ -1163,6 +1163,7 @@ __metadata:
   dependencies:
     "@modulify/conventional-bump": "npm:^0.0.0"
     "@modulify/conventional-changelog": "npm:^0.0.0"
+    "@modulify/conventional-git": "npm:^0.0.0"
     "@modulify/git-toolkit": "npm:^0.0.2"
     "@modulify/pkg": "npm:^1.0.1"
     "@types/node": "npm:^22.18.6"
