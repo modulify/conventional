@@ -24,6 +24,7 @@ module.exports = {
         'conventional-bump',
         'conventional-changelog',
         'conventional-git',
+        'conventional-release',
         'release',
       ],
     ],
