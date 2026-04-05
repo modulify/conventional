@@ -1,19 +1,34 @@
 import type { GitLogOptions } from '@modulify/git-toolkit/types/git'
+
+import type { Changeset } from './paths'
+
 import type {
   Commit,
   CommitRecord,
   CommitRevert,
 } from '~types/commit'
+
 import type { ParseOptions } from '~types/parse'
+
+import type {
+  TraverseResult,
+  TraverseOptions,
+} from '~types/traverse'
 
 import { AsyncStream } from '@modulify/git-toolkit/stream'
 import { GitClient } from '@modulify/git-toolkit'
 
 import semver from 'semver'
 
-import { createParser } from '@/parse'
+import { createChangesetTraverser } from './paths'
+import { createParser } from './parse'
+import { parseChangesetPaths } from './range'
+import { toRevision } from './range'
+import { traverse } from './traverse'
 
 const MATCH_UNSTABLE_VERSION = /\d+\.\d+\.\d+-.+/
+const COMMIT_SEPARATOR = '------------------------ >8 ------------------------'
+const PATHS_SEPARATOR = '------------------------ name-status ------------------------'
 
 /**
  * Helper to get package tag prefix.
@@ -27,6 +42,8 @@ export function packagePrefix(packageName?: string) {
 export interface CommitStreamOptions extends GitLogOptions {
   /** Pattern to filter commits. */
   ignore?: RegExp;
+  /** Attach changeset metadata to commit.meta.changeset. */
+  changeset?: boolean;
 }
 
 export interface CommitStreamParseOptions<
@@ -44,6 +61,12 @@ export interface TagStreamOptions {
   skipUnstable?: boolean
   /** Clean version from prefix and trash. */
   clean?: boolean
+}
+
+export interface ChangesetOptions {
+  fromTag?: string
+  tagPrefix?: string | RegExp
+  toRef?: string
 }
 
 /** Wrapper around Git CLI with conventional commits support. */
@@ -77,11 +100,76 @@ export class Client {
     TFields extends CommitRecord = CommitRecord,
     TMeta extends CommitRecord = CommitRecord,
   > (options: CommitStreamParseOptions<TRevert, TFields, TMeta> = {}) {
-    return this._git.commits({
+    const {
+      changeset = false,
+      ignore,
+      parse = {},
+      ...rest
+    } = options
+    const format = `%H%n${rest.format ?? '%B'}`
+
+    if (!changeset) {
+      return this._git.commits({
+        ...rest,
+        ignore,
+        format,
+        parser: createParser(parse),
+      }) as AsyncStream<Commit<TRevert, TFields, TMeta>>
+    }
+
+    const parser = createParser(parse)
+    const git = this.git
+
+    return new AsyncStream(async function * () {
+      const stdout = await git.cmd.exec('log', [
+        ...createLogArgs({
+          ...rest,
+          // Mark the beginning of each entry so the trailing --name-status block
+          // stays attached to the same commit chunk after splitting.
+          format: `${COMMIT_SEPARATOR}%n${format}%n${PATHS_SEPARATOR}`,
+        }),
+        '--name-status',
+        '--find-renames',
+      ])
+      const chunks = stdout.split(`${COMMIT_SEPARATOR}\n`).filter(Boolean)
+
+      for (const raw of chunks) {
+        if (!ignore || !ignore.test(raw)) {
+          yield parseCommitWithChangeset(raw, parser) as Commit<TRevert, TFields, TMeta>
+        }
+      }
+    }())
+  }
+
+  async traverse<
+    TRevert extends CommitRecord = CommitRevert,
+    TFields extends CommitRecord = CommitRecord,
+    TMeta extends CommitRecord = CommitRecord,
+  > (options: TraverseOptions<TRevert, TFields, TMeta>): Promise<TraverseResult> {
+    return traverse({
       ...options,
-      format: `%H%n${options.format ?? '%B'}`,
-      parser: createParser(options.parse ?? {}),
-    }) as AsyncStream<Commit<TRevert, TFields, TMeta>>
+      git: this,
+    })
+  }
+
+  async changeset ({
+    fromTag,
+    tagPrefix,
+    toRef = 'HEAD',
+  }: ChangesetOptions = {}): Promise<Changeset | null> {
+    try {
+      const result = await this.traverse({
+        fromTag,
+        tagPrefix,
+        toRef,
+        changeset: true,
+        traversers: [createChangesetTraverser()],
+      })
+
+      return result.results.get('changeset') as Changeset
+    } catch {
+      return null
+    }
   }
 
   /**
@@ -161,4 +249,56 @@ export class Client {
       throw e
     }
   }
+}
+
+function createLogArgs ({
+  from = '',
+  to = 'HEAD',
+  since,
+  order = [],
+  color = true,
+  decorate,
+  format,
+  reverse,
+  merges,
+  path,
+}: GitLogOptions) {
+  return [
+    `--format=${format}`,
+    ...since ? [`--since=${since instanceof Date ? since.toISOString() : since}`] : [],
+    ...order.map((entry) => `--${entry}-order`),
+    ...reverse ? ['--reverse'] : [],
+    ...merges ? ['--merges'] : [],
+    ...merges === false ? ['--no-merges'] : [],
+    ...color ? [] : ['--no-color'],
+    ...decorate ? [typeof decorate === 'string' ? `--decorate=${decorate}` : '--decorate'] : [],
+    toRevision(from, to),
+    ...path ? ['--', ...arraify(path)] : [],
+  ]
+}
+
+function arraify<T> (value: T | T[]) {
+  return Array.isArray(value)
+    ? value
+    : [value]
+}
+
+function parseCommitWithChangeset<
+  TRevert extends CommitRecord = CommitRevert,
+  TFields extends CommitRecord = CommitRecord,
+  TMeta extends CommitRecord = CommitRecord,
+> (
+  raw: string,
+  parser: ReturnType<typeof createParser<TRevert, TFields, TMeta>>
+) {
+  const [payload, paths = ''] = raw.split(`\n${PATHS_SEPARATOR}\n`)
+  const commit = parser(payload) as Commit<TRevert, TFields, TMeta & { changeset?: Changeset; }>
+
+  commit.meta.changeset = {
+    paths: paths.trim()
+      ? parseChangesetPaths(paths.trim())
+      : [],
+  }
+
+  return commit
 }

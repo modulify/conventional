@@ -269,6 +269,168 @@ describe('Client', () => {
     })
   })
 
+  describe('changeset', () => {
+    it('should return a changeset since the latest tag', async () => {
+      exec('git commit -m "initial" --allow-empty --no-gpg-sign')
+      fs.writeFileSync(resolve(cwd, 'tracked.txt'), 'before')
+      exec('git add tracked.txt')
+      exec('git commit -m "feat: Added tracked file" --no-gpg-sign')
+      exec('git tag v1.0.0')
+      fs.writeFileSync(resolve(cwd, 'tracked.txt'), 'after')
+      exec('git add tracked.txt')
+      exec('git commit -m "fix: Updated tracked file" --no-gpg-sign')
+
+      const client = new Client({ cwd })
+
+      expect(await client.changeset()).toEqual({
+        paths: ['tracked.txt'],
+      })
+    })
+
+    it('should respect tagPrefix and detect renamed paths', async () => {
+      fs.writeFileSync(resolve(cwd, 'tracked.txt'), 'before')
+      exec('git add tracked.txt')
+      exec('git commit -m "feat: Added tracked file" --no-gpg-sign')
+      exec('git tag root@1.0.0')
+      exec('git mv tracked.txt renamed.txt')
+      exec('git commit -m "refactor: Renamed tracked file" --no-gpg-sign')
+
+      const client = new Client({ cwd })
+
+      expect(await client.changeset({ tagPrefix: 'root@' })).toEqual({
+        paths: ['tracked.txt', 'renamed.txt'],
+      })
+    })
+
+    it('should return null when git log fails', async () => {
+      const client = new Client({ cwd })
+
+      vi.spyOn(client, 'traverse').mockRejectedValue(new Error('Unexpected error'))
+
+      expect(await client.changeset()).toBeNull()
+    })
+
+    it('should return an empty changeset when there are no changed paths in the range', async () => {
+      exec('git commit -m "initial" --allow-empty --no-gpg-sign')
+      exec('git tag v1.0.0')
+
+      const client = new Client({ cwd })
+
+      expect(await client.changeset()).toEqual({
+        paths: [],
+      })
+    })
+
+    it('should forward advanced log options when changeset is requested', async () => {
+      const client = new Client({ cwd })
+      const execSpy = vi.spyOn(client.git.cmd, 'exec').mockResolvedValue('')
+
+      expect(await streamToArray(client.commits({
+        changeset: true,
+        since: new Date('2026-01-01T00:00:00.000Z'),
+        order: ['author-date'],
+        reverse: true,
+        merges: false,
+        color: false,
+        decorate: 'short',
+        path: 'tracked.txt',
+      }))).toEqual([])
+
+      expect(execSpy).toHaveBeenCalledWith('log', expect.arrayContaining([
+        '--since=2026-01-01T00:00:00.000Z',
+        '--author-date-order',
+        '--reverse',
+        '--no-merges',
+        '--no-color',
+        '--decorate=short',
+        'HEAD',
+        '--',
+        'tracked.txt',
+        '--name-status',
+        '--find-renames',
+      ]))
+    })
+
+    it('should support merge filtering, plain decorate flag, and array paths', async () => {
+      const client = new Client({ cwd })
+      const execSpy = vi.spyOn(client.git.cmd, 'exec').mockResolvedValue('')
+
+      expect(await streamToArray(client.commits({
+        changeset: true,
+        since: '2026-01-01',
+        merges: true,
+        decorate: true,
+        path: ['tracked.txt'],
+      }))).toEqual([])
+
+      expect(execSpy).toHaveBeenCalledWith('log', expect.arrayContaining([
+        '--merges',
+        '--decorate',
+        '--since=2026-01-01',
+        'HEAD',
+        '--',
+        'tracked.txt',
+        '--name-status',
+        '--find-renames',
+      ]))
+    })
+
+    it('should attach empty changeset metadata when name-status block is empty', async () => {
+      const client = new Client({ cwd })
+
+      vi.spyOn(client.git.cmd, 'exec').mockResolvedValue([
+        '------------------------ >8 ------------------------',
+        '0123456789012345678901234567890123456789',
+        'feat: Added tracked file',
+        '',
+        '------------------------ name-status ------------------------',
+        '',
+      ].join('\n'))
+
+      const commits = await streamToArray(client.commits({ changeset: true }))
+
+      expect(commits).toHaveLength(1)
+      expect(commits[0]?.meta.changeset).toEqual({
+        paths: [],
+      })
+    })
+
+    it('should skip changeset commits filtered out by ignore regexp', async () => {
+      const client = new Client({ cwd })
+
+      vi.spyOn(client.git.cmd, 'exec').mockResolvedValue([
+        '------------------------ >8 ------------------------',
+        '0123456789012345678901234567890123456789',
+        'feat: Added tracked file',
+        '',
+        '------------------------ name-status ------------------------',
+        'A\ttracked.txt',
+      ].join('\n'))
+
+      expect(await streamToArray(client.commits({
+        changeset: true,
+        ignore: /feat: Added tracked file/,
+      }))).toEqual([])
+    })
+
+    it('should treat commits without path separator as empty changeset metadata', async () => {
+      const client = new Client({ cwd })
+
+      vi.spyOn(client.git.cmd, 'exec').mockResolvedValue([
+        '------------------------ >8 ------------------------',
+        '0123456789012345678901234567890123456789',
+        'fix: Updated tracked file',
+      ].join('\n'))
+
+      const commits = await streamToArray(client.commits({ changeset: true }))
+
+      expect(commits).toHaveLength(1)
+      expect(commits[0]?.meta.changeset).toEqual({
+        paths: [],
+      })
+    })
+  })
+
   describe('url', () => {
     it('should return remote url', async () => {
       exec('git remote add origin https://github.com/fork/conventional.git')
