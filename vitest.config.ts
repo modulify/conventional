@@ -1,20 +1,15 @@
 import { defineConfig } from 'vitest/config'
 import { join } from 'node:path'
-import { coverageThresholds } from './vitest.workspace.base'
+
+import { coverage } from './vitest.common'
 
 export default defineConfig({
-    cacheDir: join(__dirname, 'artifacts/vite/root'),
+    cacheDir: join(__dirname, 'artifacts/vite'),
     test: {
-        server: {
-            deps: {
-                cacheDir: join(__dirname, 'artifacts/vite/root-deps'),
-            },
-        },
         coverage: {
-            provider: 'istanbul',
+            ...coverage,
             include: ['packages/*/src/**'],
             exclude: ['**/*.njk'],
-            thresholds: coverageThresholds,
         },
         projects: ['packages/*'],
     },
