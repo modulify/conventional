@@ -6,6 +6,11 @@ import { Client } from '@modulify/conventional-git'
 
 import semver from 'semver'
 
+import {
+  createRecommendationAnalyzer,
+  resolveNextVersion,
+} from './recommendation'
+
 export type CommitType = {
   type: string
   section: string
@@ -37,15 +42,14 @@ export const DEFAULT_COMMIT_TYPES = Object.freeze(([
   { type: 'ci', section: 'Continuous Integration', hidden: true },
 ] as CommitType[]).map(Object.freeze) as Readonly<CommitType>[])
 
-const RELEASE_TYPES = [
-  'major',
-  'minor',
-  'patch',
-] as const
+export {
+  createRecommendationAnalyzer,
+  resolveNextVersion,
+}
 
 /** Advisor that analyzes git history and recommends the next semantic version. */
 export class ReleaseAdvisor {
-  private readonly git: Client
+  private readonly git: Pick<Client, 'traverse'>
   private readonly parse: ParseOptions
   private readonly types: CommitType[]
 
@@ -59,7 +63,7 @@ export class ReleaseAdvisor {
    */
   constructor ({ cwd, git, parse, types }: {
     cwd?: string;
-    git?: Client;
+    git?: Pick<Client, 'traverse'>;
     parse?: ParseOptions;
     types?: CommitType[];
   } = {}) {
@@ -85,63 +89,31 @@ export class ReleaseAdvisor {
     preMajor?: boolean;
     strict?: boolean;
   } = {}): Promise<ReleaseRecommendation | null> {
-    const last = fromTag ?? await this.git.tags({
-      ...tagPrefix && { prefix: tagPrefix },
-    }).first()
-    const commits = this.git.commits({
-      ...last && { from: last },
+    const result = await this.git.traverse({
       parse: this.parse,
+      fromTag,
+      tagPrefix,
+      traversers: [createRecommendationAnalyzer({
+        types: this.types,
+        ignore,
+        ignoreReverted,
+        strict,
+      })],
     })
+    const recommendation = result.results.get('recommendation') as ReleaseRecommendation | null | undefined
 
-    const hidden = strict ? this.types.reduce((known, t) => {
-      if (t.hidden) known.push(t.type)
-
-      return known
-    }, [] as string[]) : []
-
-    const reverted: Array<NonNullable<Commit['revert']>> = []
-
-    let level = 2
-    let breaking = 0
-    let features = 0
-    let fixes = 0
-
-    for await (const commit of commits) {
-      if (ignoreReverted) {
-        if (reverted.some(reverts(commit))) continue
-        if (commit.revert) reverted.push(commit.revert)
-      }
-
-      if (ignore && ignore(commit)) continue
-
-      if (commit.notes.length > 0) {
-        breaking += commit.notes.length
-        level = 0
-      } else if (commit.type === 'feat' || commit.type === 'feature') {
-        features += 1
-
-        if (level === 2) {
-          level = 1
-        }
-      } else if (strict && !hidden.includes(commit.type as string)) {
-        fixes += 1
-      }
-    }
-
-    if (preMajor && level < 2) {
-      level++
-    } else if (strict && level === 2 && !breaking && !features && !fixes) {
+    if (!recommendation) {
       return null
     }
 
-    const type = RELEASE_TYPES[level]
-
-    return {
-      type,
-      reason: breaking === 1
-        ? `There is ${breaking} BREAKING CHANGE and ${features} features`
-        : `There are ${breaking} BREAKING CHANGES and ${features} features`,
-    }
+    return preMajor && recommendation.type !== 'patch'
+      ? {
+        ...recommendation,
+        type: recommendation.type === 'major'
+          ? 'minor'
+          : 'patch',
+      }
+      : recommendation
   }
 
   async next (version: string, options: AdvisoryRangeOptions & {
@@ -153,10 +125,15 @@ export class ReleaseAdvisor {
     strict?: boolean;
     loose?: boolean;
   } = {}) {
-    const recommendation = options.type ? {
-      type: options.type,
-      reason: '',
-    } : await this.advise({
+    if (options.type) {
+      return resolveNextVersion(version, {
+        type: options.type,
+        prerelease: options.prerelease,
+        loose: options.loose,
+      })
+    }
+
+    const recommendation = await this.advise({
       ignore: options.ignore,
       ignoreReverted: options.ignoreReverted,
       preMajor: options.preMajor ?? (semver.valid(version, options.loose) ? semver.lt(version, '1.0.0', options.loose) : false),
@@ -165,59 +142,11 @@ export class ReleaseAdvisor {
       tagPrefix: options.tagPrefix,
     })
 
-    const type = isKnown(recommendation?.type)
-      ? isStable(recommendation?.type) && options.prerelease
-        ? Array.isArray(semver.prerelease(version, {})) && isPrerelease(typeOf(version), recommendation?.type)
-          ? 'prerelease'
-          : ('pre' + recommendation?.type) as SemverReleaseType
-        : recommendation?.type
-      : recommendation?.type ?? 'unknown'
-
-    return {
-      type,
-      version: isKnown(type) && semver.valid(version, options.loose)
-        ? semver.inc(version, type, options.loose, options.prerelease, '1')
-        : version,
-    }
+    return resolveNextVersion(version, {
+      type: options.type,
+      prerelease: options.prerelease,
+      loose: options.loose,
+      recommendation,
+    })
   }
-}
-
-function isKnown(type: unknown): type is SemverReleaseType {
-  return semver.RELEASE_TYPES.includes(type as SemverReleaseType)
-}
-
-function isStable(type: SemverReleaseType): type is ReleaseType {
-  return !type.startsWith('pre')
-}
-
-function isPrerelease(current: ReleaseType, next: ReleaseType) {
-  return current === next || priorityOf(current) > priorityOf(next)
-}
-
-function reverts (commit: Commit) {
-  return (revert: NonNullable<Commit['revert']>) => {
-    if (commit.hash && revert.hash) {
-      return commit.hash.startsWith(revert.hash) || revert.hash.startsWith(commit.hash)
-    }
-
-    return revert.header === commit.header
-  }
-}
-
-function typeOf(version: string): ReleaseType {
-  switch (true) {
-    case semver.major(version) > 0: return 'major'
-    case semver.minor(version) > 0: return 'minor'
-    case semver.patch(version) > 0: return 'patch'
-  }
-
-  return 'patch'
-}
-
-function priorityOf(type: ReleaseType) {
-  return {
-    major: 2,
-    minor: 1,
-    patch: 0,
-  }[type]
 }

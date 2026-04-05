@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import { join } from 'node:path'
 
 export default defineConfig({
-  cacheDir: join(__dirname, '../../artifacts/vite/conventional-bump'),
+  cacheDir: join(__dirname, './artifacts/vite'),
   resolve: {
     alias: {
       '@': join(__dirname, './src/'),

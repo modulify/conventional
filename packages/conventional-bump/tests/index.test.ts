@@ -1,6 +1,12 @@
 import type { Commit } from '@modulify/conventional-git/types/commit'
+import type { Client } from '@modulify/conventional-git'
 
-import { ReleaseAdvisor } from '@/index'
+import {
+  ReleaseAdvisor,
+  createRecommendationAnalyzer,
+  resolveNextVersion,
+} from '@/index'
+
 import { applyGitFixture } from '~tests/helpers/git-fixture'
 
 import {
@@ -26,24 +32,8 @@ const __temporary = join(__dirname, 'tmp')
 
 describe('ReleaseAdvisor', () => {
   let cwd: string
-  type ReleaseAdvisorOptions = NonNullable<ConstructorParameters<typeof ReleaseAdvisor>[0]>
 
-  const commit = (overrides: Partial<{
-    hash: string | null;
-    type: string | null;
-    scope: string | null;
-    subject: string | null;
-    merge: string | null;
-    revert: { header: string | null; hash: string | null; } | null;
-    header: string | null;
-    body: string | null;
-    footer: string | null;
-    notes: { title: string; text: string; }[];
-    mentions: string[];
-    references: unknown[];
-    fields: Record<string, string>;
-    meta: Record<string, string | null>;
-  }> = {}) => ({
+  const commit = (overrides: Partial<Commit> = {}): Commit => ({
     hash: null,
     type: null,
     scope: null,
@@ -61,24 +51,63 @@ describe('ReleaseAdvisor', () => {
     ...overrides,
   })
 
-  const createTagStream = (tags: string[]) => ({
-    async first () {
-      return tags[0] ?? null
-    },
-    async * [Symbol.asyncIterator] () {
-      for (const tag of tags) {
-        yield tag
-      }
-    },
-  })
+  const createGit = (
+    history: Commit[],
+    options: {
+      onTraverse?: (options: Record<string, unknown>) => void;
+    } = {}
+  ): Pick<Client, 'traverse'> => ({
+    traverse: (async ({ traversers, ...traverseOptions }: {
+      traversers: Array<{
+        name: string;
+        onStart?: (context: { range: { from: string | null; to: string; tagPrefix?: string | RegExp; }; commits: { total: number; }; }) => Promise<void> | void;
+        onCommit?: (commit: Commit, context: { range: { from: string | null; to: string; tagPrefix?: string | RegExp; }; commits: { total: number; }; }) => Promise<void> | void;
+        onComplete?: (context: { range: { from: string | null; to: string; tagPrefix?: string | RegExp; }; commits: { total: number; }; }) => Promise<unknown> | unknown;
+      }>;
+      fromTag?: string;
+      tagPrefix?: string | RegExp;
+      parse?: unknown;
+    }) => {
+      options.onTraverse?.(traverseOptions)
 
-  const createGit = (history: ReturnType<typeof commit>[]) => ({
-    tags: () => ({ first: async () => null }),
-    commits: async function * () {
-      for (const c of history) {
-        yield c
+      const context = {
+        range: {
+          from: (traverseOptions.fromTag as string | undefined) ?? null,
+          to: 'HEAD',
+          ...traverseOptions.tagPrefix && { tagPrefix: traverseOptions.tagPrefix as string | RegExp },
+        },
+        commits: {
+          total: 0,
+        },
       }
-    },
+      const results = new Map<string, unknown>()
+
+      for (const traverser of traversers) {
+        await traverser.onStart?.(context)
+      }
+
+      for (const entry of history) {
+        context.commits.total += 1
+
+        for (const traverser of traversers) {
+          await traverser.onCommit?.(entry, context)
+        }
+      }
+
+      for (const traverser of traversers) {
+        results.set(traverser.name, await traverser.onComplete?.(context))
+      }
+
+      return {
+        range: {
+          ...context.range,
+        },
+        commits: {
+          ...context.commits,
+        },
+        results,
+      }
+    }) as Client['traverse'],
   })
 
   const exec = (command: string) => execSync(command, {
@@ -140,6 +169,16 @@ describe('ReleaseAdvisor', () => {
 
     expect(await advisor.advise()).toEqual(
       expect.objectContaining({ type: 'major' })
+    )
+  })
+
+  it('uses singular wording for a single breaking change', async () => {
+    const advisor = new ReleaseAdvisor({ cwd })
+
+    exec('git commit -m "feat!: Added breaking feature" --allow-empty --no-gpg-sign')
+
+    expect(await advisor.advise()).toEqual(
+      expect.objectContaining({ reason: 'There is 1 BREAKING CHANGE and 0 features' })
     )
   })
 
@@ -251,29 +290,19 @@ describe('ReleaseAdvisor', () => {
   describe('multi-tag advisory range', () => {
     it('prioritizes fromTag over discovered tags', async () => {
       const calls = {
-        tags: 0,
-        commits: [] as Array<Record<string, unknown>>,
+        traverse: [] as Array<Record<string, unknown>>,
       }
 
-      const git = {
-        tags: () => {
-          calls.tags += 1
-
-          return createTagStream([ 'pkg-a@2.0.0' ])
-        },
-        commits: async function * (options: Record<string, unknown> = {}) {
-          calls.commits.push(options)
-
-          yield commit({
-            type: 'feat',
-            header: 'feat: Added feature',
-            subject: 'Added feature',
-          })
-        },
-      }
+      const git = createGit([commit({
+        type: 'feat',
+        header: 'feat: Added feature',
+        subject: 'Added feature',
+      })], {
+        onTraverse: (options) => calls.traverse.push(options),
+      })
 
       const advisor = new ReleaseAdvisor({
-        git: git as unknown as ReleaseAdvisorOptions['git'],
+        git,
       })
 
       expect(await advisor.advise({
@@ -282,53 +311,27 @@ describe('ReleaseAdvisor', () => {
         type: 'minor',
       }))
 
-      expect(calls.tags).toBe(0)
-      expect(calls.commits).toHaveLength(1)
-      expect(calls.commits[0]).toEqual(expect.objectContaining({
-        from: 'pkg-b@1.4.0',
+      expect(calls.traverse).toHaveLength(1)
+      expect(calls.traverse[0]).toEqual(expect.objectContaining({
+        fromTag: 'pkg-b@1.4.0',
       }))
     })
 
     it('uses tagPrefix to isolate a workspace tag line', async () => {
-      const tags = [
-        'pkg-a@2.0.0',
-        'pkg-b@1.4.0',
-        'pkg-a@1.9.0',
-      ]
-
       const calls = {
-        tagOptions: [] as unknown[],
-        commits: [] as Array<Record<string, unknown>>,
+        traverse: [] as Array<Record<string, unknown>>,
       }
 
-      const git = {
-        tags: (options?: { prefix?: string | RegExp; }) => {
-          calls.tagOptions.push(options)
-          const prefix = options?.prefix
-
-          if (!prefix) {
-            return createTagStream(tags)
-          }
-
-          const filtered = tags.filter((tag) => typeof prefix === 'string'
-            ? tag.startsWith(prefix)
-            : prefix.test(tag))
-
-          return createTagStream(filtered)
-        },
-        commits: async function * (options: Record<string, unknown> = {}) {
-          calls.commits.push(options)
-
-          yield commit({
-            type: 'feat',
-            header: 'feat: Added feature',
-            subject: 'Added feature',
-          })
-        },
-      }
+      const git = createGit([commit({
+        type: 'feat',
+        header: 'feat: Added feature',
+        subject: 'Added feature',
+      })], {
+        onTraverse: (options) => calls.traverse.push(options),
+      })
 
       const advisor = new ReleaseAdvisor({
-        git: git as unknown as ReleaseAdvisorOptions['git'],
+        git,
       })
 
       expect(await advisor.advise({
@@ -337,56 +340,29 @@ describe('ReleaseAdvisor', () => {
         type: 'minor',
       }))
 
-      expect(calls.tagOptions).toHaveLength(1)
-      expect(calls.tagOptions[0]).toEqual(expect.objectContaining({
-        prefix: 'pkg-b@',
-      }))
-      expect(calls.commits[0]).toEqual(expect.objectContaining({
-        from: 'pkg-b@1.4.0',
+      expect(calls.traverse).toHaveLength(1)
+      expect(calls.traverse[0]).toEqual(expect.objectContaining({
+        tagPrefix: 'pkg-b@',
       }))
     })
 
     it('supports regexp tagPrefix for grouped tag lines', async () => {
       const prefix = /^(?:core|shared)@/
-      const tags = [
-        'ui@2.0.0',
-        'shared@1.2.0',
-        'core@1.1.0',
-      ]
 
       const calls = {
-        tagOptions: [] as unknown[],
-        commits: [] as Array<Record<string, unknown>>,
+        traverse: [] as Array<Record<string, unknown>>,
       }
 
-      const git = {
-        tags: (options?: { prefix?: string | RegExp; }) => {
-          calls.tagOptions.push(options)
-          const prefix = options?.prefix
-
-          if (!prefix) {
-            return createTagStream(tags)
-          }
-
-          const filtered = tags.filter((tag) => typeof prefix === 'string'
-            ? tag.startsWith(prefix)
-            : prefix.test(tag))
-
-          return createTagStream(filtered)
-        },
-        commits: async function * (options: Record<string, unknown> = {}) {
-          calls.commits.push(options)
-
-          yield commit({
-            type: 'fix',
-            header: 'fix: Fixed issue',
-            subject: 'Fixed issue',
-          })
-        },
-      }
+      const git = createGit([commit({
+        type: 'fix',
+        header: 'fix: Fixed issue',
+        subject: 'Fixed issue',
+      })], {
+        onTraverse: (options) => calls.traverse.push(options),
+      })
 
       const advisor = new ReleaseAdvisor({
-        git: git as unknown as ReleaseAdvisorOptions['git'],
+        git,
       })
 
       expect(await advisor.advise({
@@ -395,77 +371,53 @@ describe('ReleaseAdvisor', () => {
         type: 'patch',
       }))
 
-      expect(calls.tagOptions[0]).toEqual(expect.objectContaining({
-        prefix,
-      }))
-      expect(calls.commits[0]).toEqual(expect.objectContaining({
-        from: 'shared@1.2.0',
+      expect(calls.traverse[0]).toEqual(expect.objectContaining({
+        tagPrefix: prefix,
       }))
     })
 
     it('falls back to full history when tagPrefix has no matches', async () => {
-      const tags = [ 'pkg-a@2.0.0' ]
-
       const calls = {
-        commits: [] as Array<Record<string, unknown>>,
+        traverse: [] as Array<Record<string, unknown>>,
       }
 
-      const git = {
-        tags: (options?: { prefix?: string | RegExp; }) => {
-          const prefix = options?.prefix
-
-          if (!prefix) {
-            return createTagStream(tags)
-          }
-
-          const filtered = tags.filter((tag) => typeof prefix === 'string'
-            ? tag.startsWith(prefix)
-            : prefix.test(tag))
-
-          return createTagStream(filtered)
-        },
-        commits: async function * (options: Record<string, unknown> = {}) {
-          calls.commits.push(options)
-
-          yield commit({
-            type: 'feat',
-            header: 'feat: Added feature',
-            subject: 'Added feature',
-          })
-        },
-      }
+      const git = createGit([commit({
+        type: 'feat',
+        header: 'feat: Added feature',
+        subject: 'Added feature',
+      })], {
+        onTraverse: (options) => calls.traverse.push(options),
+      })
 
       const advisor = new ReleaseAdvisor({
-        git: git as unknown as ReleaseAdvisorOptions['git'],
+        git,
       })
 
       await advisor.advise({
         tagPrefix: 'pkg-b@',
       })
 
-      expect(calls.commits[0]).not.toHaveProperty('from')
+      expect(calls.traverse[0]).toEqual(expect.objectContaining({
+        tagPrefix: 'pkg-b@',
+      }))
+      expect(calls.traverse[0].fromTag).toBeUndefined()
     })
 
     it('forwards fromTag into next() recommendation flow', async () => {
       const calls = {
-        commits: [] as Array<Record<string, unknown>>,
+        traverse: [] as Array<Record<string, unknown>>,
       }
 
-      const git = {
-        tags: () => createTagStream([ 'pkg-a@2.0.0' ]),
-        commits: async function * (options: Record<string, unknown> = {}) {
-          calls.commits.push(options)
-
-          yield commit({
-            type: 'feat',
-            header: 'feat: Added feature',
-            subject: 'Added feature',
-          })
-        },
-      }
+      const git = createGit([commit({
+        type: 'feat',
+        header: 'feat: Added feature',
+        subject: 'Added feature',
+      })], {
+        onTraverse: (options) => calls.traverse.push(options),
+      })
 
       const advisor = new ReleaseAdvisor({
-        git: git as unknown as ReleaseAdvisorOptions['git'],
+        git,
       })
 
       expect(await advisor.next('1.0.0', {
@@ -475,9 +427,9 @@ describe('ReleaseAdvisor', () => {
         version: '1.1.0',
       }))
 
-      expect(calls.commits).toHaveLength(1)
-      expect(calls.commits[0]).toEqual(expect.objectContaining({
-        from: 'pkg-b@1.4.0',
+      expect(calls.traverse).toHaveLength(1)
+      expect(calls.traverse[0]).toEqual(expect.objectContaining({
+        fromTag: 'pkg-b@1.4.0',
       }))
     })
 
@@ -546,7 +498,7 @@ describe('ReleaseAdvisor', () => {
       })
 
       const advisor = new ReleaseAdvisor({
-        git: createGit([revert, base]) as unknown as ReleaseAdvisorOptions['git'],
+        git: createGit([revert, base]),
       })
 
       expect(await advisor.advise({
@@ -576,7 +528,7 @@ describe('ReleaseAdvisor', () => {
           type: 'feat',
           header: 'feat: Added feature',
           subject: 'Added feature',
-        })]) as unknown as ReleaseAdvisorOptions['git'],
+        })]),
       })
 
       expect(await advisor.next('0.1.0-alpha.1', { prerelease: 'alpha' })).toEqual({
@@ -615,7 +567,7 @@ describe('ReleaseAdvisor', () => {
       })
     })
 
-    it('supports prerelease', async () => {
+  it('supports prerelease', async () => {
       const advisor = new ReleaseAdvisor({ cwd })
 
       exec('git commit -m "feat: some feature" --allow-empty --no-gpg-sign')
@@ -702,6 +654,66 @@ describe('ReleaseAdvisor', () => {
         type: 'prepatch',
         version: '0.1.1-alpha.1',
       })
+    })
+  })
+
+  it('keeps prerelease recommendations intact in preMajor mode', () => {
+    expect(resolveNextVersion('1.0.0-alpha.1', {
+      recommendation: {
+        type: 'preminor' as never,
+        reason: '',
+      },
+      preMajor: true,
+    }).type).toBe('preminor')
+  })
+
+  it('creates recommendation analyzer with default options', async () => {
+    const analyzer = createRecommendationAnalyzer()
+    const context = {
+      range: {
+        from: null,
+        to: 'HEAD',
+      },
+      commits: {
+        total: 0,
+      },
+    }
+
+    await analyzer.onStart?.(context)
+    expect(await analyzer.onComplete?.(context)).toEqual({
+      type: 'patch',
+      reason: 'There are 0 BREAKING CHANGES and 0 features',
+    })
+  })
+
+  it('resolves next version with default options', () => {
+    expect(resolveNextVersion('1.0.0')).toEqual({
+      type: 'unknown',
+      version: '1.0.0',
+    })
+  })
+
+  it('downgrades stable recommendations in preMajor mode', () => {
+    expect(resolveNextVersion('0.2.0', {
+      recommendation: {
+        type: 'minor',
+        reason: '',
+      },
+      preMajor: true,
+    })).toEqual({
+      type: 'patch',
+      version: '0.2.1',
+    })
+
+    expect(resolveNextVersion('0.0.1', {
+      recommendation: {
+        type: 'patch',
+        reason: '',
+      },
+      preMajor: true,
+    })).toEqual({
+      type: 'patch',
+      version: '0.0.2',
     })
   })
 })
