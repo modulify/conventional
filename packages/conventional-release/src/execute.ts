@@ -13,8 +13,14 @@ import type {
   DiscoveredSlice,
 } from './plan'
 
+import type { ChangelogNotes } from '@modulify/conventional-changelog'
+import type { ReleaseRecommendation } from '@modulify/conventional-bump'
 import type { Runtime } from './runtime'
 
+import { createRecommendationAnalyzer } from '@modulify/conventional-bump'
+import { createChangelogCapacitor } from '@modulify/conventional-changelog'
+import { renderChangelog } from '@modulify/conventional-changelog'
+import { resolveNextVersion } from '@modulify/conventional-bump'
 import { update } from '@modulify/pkg'
 
 import { join, relative } from 'node:path'
@@ -90,17 +96,14 @@ async function executeSlice (
     packages: uniquePackages(slice.packages),
   } satisfies DiscoveredSlice
   const currentVersion = resolveSliceCurrentVersion(normalizedSlice, runtime.cwd)
-  const release = await runtime.advisor.next(currentVersion, {
+  const releaseMeta = await collectSliceMeta(runtime, normalizedSlice)
+  const release = resolveNextVersion(currentVersion, {
+    recommendation: releaseMeta.recommendation,
     type: options.releaseAs,
     prerelease: options.prerelease,
-    ...normalizedSlice.range,
   })
-  const releaseType = String(release.type ?? 'unknown')
+  const releaseType = String(release.type)
   const nextVersion = release.version
-
-  if (nextVersion === null) {
-    throw new Error(`Unable to calculate next version for slice "${normalizedSlice.id}"`)
-  }
 
   const base = toSlice(normalizedSlice, runtime.cwd)
 
@@ -116,7 +119,11 @@ async function executeSlice (
     }
   }
 
-  const files = await applySlice(runtime, normalizedSlice, nextVersion, options)
+  const changes = renderChangelog(nextVersion, {
+    notes: releaseMeta.notes,
+    url: await runtime.history.url(),
+  })
+  const files = await applySlice(runtime, normalizedSlice, nextVersion, options, changes)
   const context = createTagContext(normalizedSlice, nextVersion, releaseType, runtime.cwd)
   const tag = options.tagName
     ? options.tagName(context)
@@ -165,7 +172,8 @@ async function applySlice (
   runtime: Runtime,
   slice: DiscoveredSlice,
   nextVersion: string,
-  options: Options
+  options: Options,
+  changes: string
 ) {
   const bumpedPackageNames = slice.packages.reduce((all, pkg) => {
     const name = pkg.manifest.name ?? pkg.name
@@ -208,12 +216,31 @@ async function applySlice (
     await runtime.sh.exec(runtime.packageManager.command, ['install', ...installArgs])
   }
 
-  await runtime.write(nextVersion)
+  if (!runtime.dry) {
+    await runtime.writeChangelog(changes)
+  }
 
   files.push(relative(runtime.cwd, join(runtime.cwd, runtime.packageManager.lockfile)))
   files.push(relative(runtime.cwd, join(runtime.cwd, runtime.changelogFile)))
 
   return uniqueStrings(files)
+}
+
+async function collectSliceMeta (
+  runtime: Runtime,
+  slice: DiscoveredSlice
+) {
+  const result = await runtime.history.traverse({
+    ...slice.range,
+    traversers: [createRecommendationAnalyzer({
+      strict: true,
+    }), createChangelogCapacitor()],
+  })
+
+  return {
+    recommendation: result.results.get('recommendation') as ReleaseRecommendation | null,
+    notes: result.results.get('changelog') as ChangelogNotes,
+  }
 }
 
 function resolveInstallArgs (runtime: Runtime, install: Options['install']) {

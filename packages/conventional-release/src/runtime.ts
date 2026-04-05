@@ -1,11 +1,7 @@
-import type { Range } from '~types/domain'
-import type { ReleaseType as SemverReleaseType } from 'semver'
-
+import { Client as HistoryClient } from '@modulify/conventional-git'
+import { writeChangelog } from '@modulify/conventional-changelog'
 import { GitCommander } from '@modulify/git-toolkit'
-import { ReleaseAdvisor } from '@modulify/conventional-bump'
 import { Runner } from '@modulify/git-toolkit/shell'
-
-import { createWrite } from '@modulify/conventional-changelog'
 
 import {
   existsSync,
@@ -25,13 +21,6 @@ export type Git = {
   tag(options: { name: string; message: string; }): Promise<unknown>
 }
 
-export type Advisor = {
-  next(version: string, options?: {
-    type?: SemverReleaseType;
-    prerelease?: 'alpha' | 'beta' | 'rc';
-  } & Range): Promise<{ type?: string | null; version: string | null; }>
-}
-
 export type PackageManagerName = 'yarn' | 'pnpm' | 'npm' | 'bun'
 
 export interface PackageManager {
@@ -44,8 +33,8 @@ export interface Runtime {
   dry: boolean
   changelogFile: string
   packageManager: PackageManager
-  advisor: Advisor
-  write: (version: string) => Promise<string>
+  history: Pick<HistoryClient, 'traverse' | 'url'>
+  writeChangelog(changes: string): Promise<string>
   sh: Shell
   git: Git
 }
@@ -67,21 +56,12 @@ export function createRuntime ({
     dry,
     changelogFile,
     packageManager: resolvePackageManager(cwd),
-    advisor: createAdvisor(cwd),
-    write: createWrite({
-      cwd,
+    history: new HistoryClient({ cwd }),
+    writeChangelog: (changes) => writeChangelog(changes, {
       file: dry ? undefined : join(cwd, changelogFile),
     }),
     sh,
     git: createGit(sh),
-  }
-}
-
-function createAdvisor (cwd: string): Advisor {
-  const advisor = new ReleaseAdvisor({ cwd })
-
-  return {
-    next: (version, options) => advisor.next(version, options),
   }
 }
 

@@ -9,21 +9,17 @@ import { fileURLToPath } from 'node:url'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const bin = join(root, 'bin')
+const dist = join(root, 'dist')
 const esmFile = join(bin, 'index.js')
 const cjsFile = join(bin, 'index.cjs')
 
 if (process.argv.includes('--prepare')) {
   rmSync(bin, { recursive: true, force: true })
-  rmSync(join(root, 'dist/cli.mjs'), { force: true })
-  rmSync(join(root, 'dist/cli.cjs'), { force: true })
-  rmSync(join(root, 'dist/cli.d.ts'), { force: true })
+  rmSync(dist, { recursive: true, force: true })
 
   process.exit(0)
 }
 
-rmSync(join(root, 'dist/cli.mjs'), { force: true })
-rmSync(join(root, 'dist/cli.cjs'), { force: true })
-rmSync(join(root, 'dist/cli.d.ts'), { force: true })
 mkdirSync(bin, { recursive: true })
 writeFileSync(esmFile, `#!/usr/bin/env node
 

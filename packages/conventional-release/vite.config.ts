@@ -65,6 +65,7 @@ export default mergeConfig(common, defineConfig({
 
   plugins: [
     dts({
+      entryRoot: 'src',
       exclude: [
         'bin/**/*.*',
         'src/cli.ts',
@@ -73,6 +74,7 @@ export default mergeConfig(common, defineConfig({
         'tests/**/*.*',
       ],
       staticImport: true,
+      tsconfigPath: './tsconfig.build.json',
     }),
   ],
 }))

@@ -8,7 +8,10 @@ import type {
 
 import { run } from '@/index'
 import { main } from '@/cli'
-import { parseArgv } from '@/cli/args'
+import {
+  CliParseError,
+  parseArgv,
+} from '@/cli/args'
 import { createReporter } from '@/cli/reporter'
 import {
   BufferedOutput,
@@ -80,12 +83,36 @@ describe('parseArgv', () => {
   })
 
   it('rejects unsupported prerelease channels', async () => {
-    await expect(parseArgv([
-      'node',
-      'conventional-release',
-      '--prerelease',
-      'preview',
-    ])).rejects.toThrow('prerelease should be one of alpha, beta, rc or undefined')
+    expect.assertions(3)
+
+    try {
+      await parseArgv([
+        'node',
+        'conventional-release',
+        '--prerelease',
+        'preview',
+      ])
+    } catch (error: unknown) {
+      expect(error).toBeInstanceOf(CliParseError)
+      expect((error as CliParseError).message).toBe('prerelease should be one of alpha, beta, rc or undefined')
+      expect((error as CliParseError).help).toContain('Specify the prerelease type (alpha|beta|rc)')
+    }
+  })
+
+  it('rejects missing option arguments with help text', async () => {
+    expect.assertions(3)
+
+    try {
+      await parseArgv([
+        'node',
+        'conventional-release',
+        '--release-as',
+      ])
+    } catch (error: unknown) {
+      expect(error).toBeInstanceOf(CliParseError)
+      expect((error as CliParseError).message).toContain('Not enough arguments following: release-as')
+      expect((error as CliParseError).help).toContain('Specify the release type (major|minor|patch)')
+    }
   })
 
   it('falls back to process.argv when argv is omitted', async () => {

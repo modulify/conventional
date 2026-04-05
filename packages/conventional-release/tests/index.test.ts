@@ -16,8 +16,10 @@ import { createRuntime as createReleaseRuntime, type Runtime as ReleaseRuntime }
 
 import { execSync } from 'node:child_process'
 import {
+  existsSync,
   mkdtempSync,
   mkdirSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -94,21 +96,30 @@ function createRuntime ({
   root,
   nested = [],
   dry = false,
-  next = { type: 'minor', version: '1.1.0' },
+  changesetPaths = null,
+  recommendation,
+  next,
 }: {
   root: ReleasePackage;
   nested?: ReleasePackage[];
   dry?: boolean;
+  changesetPaths?: string[] | null;
+  recommendation?: { type: string; reason?: string; } | null;
   next?: { type: string; version: string | null; };
 }) {
   const runtimeRoot = {
     ...root,
     children: [...root.children, ...nested],
   } satisfies ReleasePackage
+  const defaultChangesetPaths = [
+    'package.json',
+    ...nested.map((pkg) => join(pkg.path.replace(`${root.path}/`, ''), 'package.json')),
+  ]
 
   pkgState.mocked = true
   pkgState.root = runtimeRoot
   pkgState.updates = []
+  const effectiveRecommendation = recommendation ?? (next ? { type: next.type, reason: '' } : null)
 
   const runtime = {
     cwd: '/repo',
@@ -118,10 +129,52 @@ function createRuntime ({
       command: 'yarn',
       lockfile: 'yarn.lock',
     },
-    advisor: {
-      next: vi.fn(async () => next),
+    history: {
+      traverse: vi.fn(async ({ traversers = [] }: {
+        traversers?: Array<{ name: string; }>;
+      } = {}) => {
+        const results = new Map<string, unknown>()
+
+        for (const traverser of traversers) {
+          if (traverser.name === 'recommendation') {
+            results.set('recommendation', effectiveRecommendation)
+          }
+
+          if (traverser.name === 'changelog') {
+            results.set('changelog', {
+              highlights: [],
+              sections: effectiveRecommendation
+                ? [{
+                  title: effectiveRecommendation.type === 'minor'
+                    ? 'Features'
+                    : 'Bug Fixes',
+                  commits: [],
+                }]
+                : [],
+            })
+          }
+
+          if (traverser.name === 'changeset') {
+            results.set('changeset', {
+              paths: changesetPaths ?? defaultChangesetPaths,
+            })
+          }
+        }
+
+        return {
+          range: {
+            from: null,
+            to: 'HEAD',
+          },
+          commits: {
+            total: results.size ? 1 : 0,
+          },
+          results,
+        }
+      }),
+      url: vi.fn(async () => 'https://github.com/modulify/conventional.git'),
     },
-    write: vi.fn(async () => '# Changelog'),
+    writeChangelog: vi.fn(async (changes: string) => changes),
     sh: {
       exec: vi.fn(async () => undefined),
     },
@@ -198,7 +251,7 @@ describe('runRelease', () => {
     })
     const { runtime } = createRuntime({
       root,
-      next: { type: 'patch', version: '1.0.0' },
+      recommendation: null,
     })
 
     const result = await runReleaseWithRuntime(runtime)
@@ -216,28 +269,14 @@ describe('runRelease', () => {
       mode: 'sync',
       currentVersion: '1.0.0',
       nextVersion: '1.0.0',
-      releaseType: 'patch',
+      releaseType: 'unknown',
       changed: false,
       dry: false,
       files: [],
     }))
-    expect(runtime.write).not.toHaveBeenCalled()
+    expect(runtime.history.url).not.toHaveBeenCalled()
     expect(runtime.sh.exec).not.toHaveBeenCalled()
     expect(runtime.git.add).not.toHaveBeenCalled()
-  })
-
-  it('throws when advisor cannot calculate a version', async () => {
-    const root = createPackage({
-      name: '@scope/root',
-      path: '/repo',
-      manifest: { version: '1.0.0' },
-    })
-    const { runtime } = createRuntime({
-      root,
-      next: { type: 'patch', version: null },
-    })
-
-    await expect(runReleaseWithRuntime(runtime)).rejects.toThrow('Unable to calculate next version for slice "sync:default"')
   })
 
   it('updates manifests and finalizes release with commit and tag', async () => {
@@ -269,7 +308,7 @@ describe('runRelease', () => {
     const { runtime, updates } = createRuntime({
       root,
       nested: [nested],
-      next: { type: 'minor', version: '1.1.0' },
+      recommendation: { type: 'minor' },
     })
 
     const result = await runReleaseWithRuntime(runtime, {
@@ -278,14 +317,13 @@ describe('runRelease', () => {
     })
     const step = onlySlice(result.slices)
 
-    expect(runtime.advisor.next).toHaveBeenCalledWith('1.0.0', {
-      type: undefined,
-      prerelease: undefined,
+    expect(runtime.history.traverse).toHaveBeenCalledWith(expect.objectContaining({
       fromTag: 'v1.0.0',
       tagPrefix: 'v',
-    })
+    }))
     expect(runtime.sh.exec).toHaveBeenCalledWith('yarn', ['install', '--no-immutable'])
-    expect(runtime.write).toHaveBeenCalledWith('1.1.0')
+    expect(runtime.history.url).toHaveBeenCalledWith()
+    expect(runtime.writeChangelog).toHaveBeenCalledWith(expect.any(String))
     expect(updates[0]?.diff).toEqual({
       version: '1.1.0',
       dependencies: {
@@ -536,29 +574,53 @@ describe('runRelease', () => {
         version: undefined,
       },
     })
-    const advisorNext = vi.fn(async () => ({
-      type: undefined,
-      version: '0.0.1',
+    const traverse = vi.fn(async ({ traversers = [] }: {
+      traversers?: Array<{ name: string; }>;
+    } = {}) => ({
+      range: {
+        from: null,
+        to: 'HEAD',
+      },
+      commits: {
+        total: traversers.length ? 1 : 0,
+      },
+      results: new Map<string, unknown>(
+        traversers.map((traverser) => {
+          if (traverser.name === 'changeset') {
+            return ['changeset', { paths: ['package.json'] }]
+          }
+
+          if (traverser.name === 'recommendation') {
+            return ['recommendation', null]
+          }
+
+          return ['changelog', {
+            highlights: [],
+            sections: [],
+          }]
+        })
+      ),
     }))
     const runtime = {
       ...createRuntime({
         root,
-        next: { type: 'minor', version: '0.0.1' },
+        recommendation: { type: 'minor' },
       }).runtime,
-      advisor: {
-        next: advisorNext,
+      history: {
+        ...createRuntime({
+          root,
+        }).runtime.history,
+        traverse,
       },
     } satisfies ReleaseRuntime
 
     const result = await runReleaseWithRuntime(runtime)
     const step = onlySlice(result.slices)
 
-    expect(advisorNext).toHaveBeenCalledWith('0.0.0', {
-      type: undefined,
-      prerelease: undefined,
+    expect(traverse).toHaveBeenCalledWith(expect.objectContaining({
       fromTag: undefined,
       tagPrefix: undefined,
-    })
+    }))
     expect(step.currentVersion).toBe('0.0.0')
     expect(step.releaseType).toBe('unknown')
   })
@@ -663,10 +725,37 @@ describe('runRelease', () => {
           command: 'yarn',
           lockfile: 'yarn.lock',
         },
-        advisor: {
-          next: vi.fn(async () => ({ type: 'patch', version: '1.0.1' })),
+        history: {
+          traverse: vi.fn(async ({ traversers = [] }: {
+            traversers?: Array<{ name: string; }>;
+          } = {}) => ({
+            range: {
+              from: null,
+              to: 'HEAD',
+            },
+            commits: {
+              total: 1,
+            },
+            results: new Map<string, unknown>(
+              traversers.map((traverser) => {
+                if (traverser.name === 'changeset') {
+                  return ['changeset', { paths: ['docs/README.md'] }]
+                }
+
+                if (traverser.name === 'recommendation') {
+                  return ['recommendation', { type: 'patch', reason: '' }]
+                }
+
+                return ['changelog', {
+                  highlights: [],
+                  sections: [],
+                }]
+              })
+            ),
+          })),
+          url: vi.fn(async () => 'https://github.com/modulify/conventional.git'),
         },
-        write: vi.fn(async () => '# Changelog'),
+        writeChangelog: vi.fn(async (changes: string) => changes),
         sh: {
           exec: vi.fn(async () => undefined),
         },
@@ -686,6 +775,33 @@ describe('runRelease', () => {
     } finally {
       rmSync(cwd, { recursive: true, force: true })
     }
+  })
+
+  it('updates nested release root when only nested root files changed', async () => {
+    const root = createPackage({
+      name: '@scope/release-root',
+      path: '/repo/packages/release-root',
+      manifest: {
+        version: '1.0.0',
+      },
+    })
+    const { runtime } = createRuntime({
+      root,
+      dry: true,
+      changesetPaths: ['packages/release-root/README.md'],
+      next: { type: 'patch', version: '1.0.1' },
+    })
+
+    const scope = await createReleaseScopeWithRuntime(runtime, {
+      mode: 'sync',
+    })
+    const result = await runReleaseWithRuntime(runtime, {
+      mode: 'sync',
+    })
+
+    expect(scope.affected.map((pkg) => pkg.path)).toEqual(['packages/release-root'])
+    expect(result.changed).toBe(true)
+    expect(result.files).toContain('packages/release-root/package.json')
   })
 
   it('returns unchanged when workspace filters exclude all targets', async () => {
@@ -709,7 +825,7 @@ describe('runRelease', () => {
 
     expect(result.changed).toBe(false)
     expect(result.files).toEqual([])
-    expect(runtime.write).not.toHaveBeenCalled()
+    expect(runtime.history.url).not.toHaveBeenCalled()
     expect(runtime.git.add).not.toHaveBeenCalled()
   })
 
@@ -834,7 +950,11 @@ describe('createReleaseScope', () => {
       'v1.0.0',
       'v1.0.0',
     ])
-    expect(runtime.write).not.toHaveBeenCalled()
+    expect(runtime.history.traverse).toHaveBeenCalledWith(expect.objectContaining({
+      changeset: true,
+      fromTag: 'v1.0.0',
+      tagPrefix: 'v',
+    }))
     expect(runtime.sh.exec).not.toHaveBeenCalled()
     expect(runtime.git.add).not.toHaveBeenCalled()
   })
@@ -1396,6 +1516,7 @@ describe('createReleaseRuntime', () => {
     expect(runtime.dry).toBe(false)
     expect(runtime.changelogFile).toBe('CHANGELOG.md')
     expect(runtime.packageManager.command).toBe('yarn')
+    expect(typeof runtime.history.traverse).toBe('function')
   })
 
   it('creates runtime with dry changelog mode', () => {
@@ -1407,7 +1528,25 @@ describe('createReleaseRuntime', () => {
     expect(runtime.cwd).toBe('/repo')
     expect(runtime.dry).toBe(true)
     expect(runtime.changelogFile).toBe('CHANGELOG.md')
-    expect(typeof runtime.write).toBe('function')
+    expect(typeof runtime.history.traverse).toBe('function')
+  })
+
+  it('returns changelog text without writing a file in dry mode', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'conventional-release-dry-changelog-'))
+
+    try {
+      const runtime = createReleaseRuntime({
+        cwd,
+        dry: true,
+      })
+
+      const changes = await runtime.writeChangelog('## 1.0.0')
+
+      expect(changes).toBe('## 1.0.0')
+      expect(existsSync(join(cwd, 'CHANGELOG.md'))).toBe(false)
+    } finally {
+      rmSync(cwd, { recursive: true, force: true })
+    }
   })
 
   it('creates runtime with file output mode', () => {
@@ -1420,7 +1559,26 @@ describe('createReleaseRuntime', () => {
     expect(runtime.cwd).toBe('/repo')
     expect(runtime.dry).toBe(false)
     expect(runtime.changelogFile).toBe('RELEASE_NOTES.md')
-    expect(typeof runtime.write).toBe('function')
+    expect(typeof runtime.history.traverse).toBe('function')
+  })
+
+  it('writes changelog to the configured file in file output mode', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'conventional-release-file-changelog-'))
+
+    try {
+      const runtime = createReleaseRuntime({
+        cwd,
+        dry: false,
+        changelogFile: 'RELEASE_NOTES.md',
+      })
+
+      await runtime.writeChangelog('## 1.0.0')
+
+      expect(readFileSync(join(cwd, 'RELEASE_NOTES.md'), 'utf-8')).toContain('# Changelog')
+      expect(readFileSync(join(cwd, 'RELEASE_NOTES.md'), 'utf-8')).toContain('## 1.0.0')
+    } finally {
+      rmSync(cwd, { recursive: true, force: true })
+    }
   })
 
   it('detects package manager from package.json', () => {

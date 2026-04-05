@@ -19,8 +19,14 @@ export interface CliOptions {
   tags: boolean
 }
 
+export class CliParseError extends Error {
+  help?: string
+}
+
 export async function parseArgv (argv: string[] = process.argv): Promise<CliOptions> {
-  const parsed = await yargs(hideBin(argv))
+  const parser = yargs(hideBin(argv))
+    .locale('en')
+    .scriptName('conventional-release')
     .usage('Usage: $0 [options]')
     .option('release-as', {
       alias: 'r',
@@ -57,13 +63,28 @@ export async function parseArgv (argv: string[] = process.argv): Promise<CliOpti
 
       return true
     })
+    .showHelpOnFail(false)
+    .fail((message) => {
+      throw new Error(message!)
+    })
     .alias('version', 'v')
     .alias('help', 'h')
     .example('$0', 'Update changelog and tag release')
     .example('$0 --dry --verbose', 'Show a detailed dry-run release preview')
     .pkgConf('release')
     .wrap(97)
-    .parseAsync()
+  let parsed: Awaited<ReturnType<typeof parser.parseAsync>>
+
+  try {
+    parsed = await parser.parseAsync()
+  } catch (error: unknown) {
+    const failure = new CliParseError((error as Error).message)
+    const help = await (parser as unknown as { getHelp: () => Promise<string | string[]> }).getHelp()
+
+    failure.help = [help].flat().join('\n')
+
+    throw failure
+  }
 
   return {
     releaseAs: parsed.releaseAs as ReleaseType | undefined,

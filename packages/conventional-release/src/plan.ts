@@ -13,8 +13,7 @@ import type {
 
 import type { Runtime } from './runtime'
 
-import { Client as GitClient } from '@modulify/conventional-git'
-import { execFileSync } from 'node:child_process'
+import { createChangesetTraverser } from '@modulify/conventional-git'
 import { read } from '@modulify/pkg'
 import { relative } from 'node:path'
 import { walk } from '@modulify/pkg'
@@ -68,14 +67,13 @@ export async function discover (
     runtime.cwd
   )
   const mode = options.mode ?? DEFAULT_RELEASE_MODE
-  const git = new GitClient({ cwd: runtime.cwd })
   const affectedPaths = mode === 'hybrid'
     ? null
     : await detectAffectedPackages({
       cwd: runtime.cwd,
       root,
       packages: discovered,
-      git,
+      history: runtime.history,
       range: {
         fromTag: options.fromTag,
         tagPrefix: options.tagPrefix,
@@ -94,7 +92,7 @@ export async function discover (
       root,
       packages: discovered,
       cwd: runtime.cwd,
-      git,
+      history: runtime.history,
       fromTag: options.fromTag,
       tagPrefix: options.tagPrefix,
       partitions: options.partitions,
@@ -220,7 +218,7 @@ async function createHybridSlices ({
   root,
   packages,
   cwd,
-  git,
+  history,
   fromTag,
   tagPrefix,
   partitions,
@@ -228,7 +226,7 @@ async function createHybridSlices ({
   root: Package
   packages: Package[]
   cwd: string
-  git: GitClient
+  history: Runtime['history']
   fromTag?: string
   tagPrefix?: string | RegExp
   partitions?: Record<string, Partition>
@@ -258,7 +256,7 @@ async function createHybridSlices ({
       cwd,
       root,
       packages: matched,
-      git,
+      history,
       range: resolvePartitionRange({ fromTag, tagPrefix, partition: definition }),
     })
     const scoped = matched.filter((pkg) => affectedPaths.has(pkg.path))
@@ -299,7 +297,7 @@ async function createHybridSlices ({
     cwd,
     root,
     packages: fallbackCandidates,
-    git,
+    history,
     range: {
       fromTag,
       tagPrefix,
@@ -339,16 +337,16 @@ async function detectAffectedPackages ({
   cwd,
   root,
   packages,
-  git,
+  history,
   range,
 }: {
   cwd: string
   root: Package
   packages: Package[]
-  git: GitClient
+  history: Runtime['history']
   range: Range
 }) {
-  const touched = await readCommitRangePaths(cwd, git, range)
+  const touched = await readCommitRangePaths(history, range)
 
   if (touched === null) {
     return new Set(packages.map((pkg) => pkg.path))
@@ -370,16 +368,11 @@ async function detectAffectedPackages ({
   const affected = new Set<string>()
 
   for (const path of touched.map(normalizePath)) {
+    if (!isPathInside(path, normalizedRoot)) continue
+
     const child = children.find((entry) => isPathInside(path, entry.relativePath))
 
-    if (child) {
-      affected.add(child.packagePath)
-      continue
-    }
-
-    if (isPathInside(path, normalizedRoot)) {
-      affected.add(root.path)
-    }
+    affected.add(child?.packagePath ?? root.path)
   }
 
   return affected
@@ -432,13 +425,8 @@ function matchesPackageSelector (
 }
 
 function matchesGlob (input: string, pattern: string) {
-  if (!pattern) {
-    return false
-  }
-
-  if (pattern === '*') {
-    return true
-  }
+  if (!pattern) return false
+  if (pattern === '*') return true
 
   const escaped = pattern
     .replace(/[.+^${}()|[\]\\]/g, '\\$&')
@@ -450,40 +438,18 @@ function matchesGlob (input: string, pattern: string) {
 }
 
 async function readCommitRangePaths (
-  cwd: string,
-  git: GitClient,
+  history: Runtime['history'],
   range: Range
 ) {
   try {
-    const fromTag = range.fromTag ?? await git.tags({
-      ...range.tagPrefix && { prefix: range.tagPrefix },
-    }).first()
-    const revision = fromTag
-      ? `${fromTag}..HEAD`
-      : 'HEAD'
-    const output = execFileSync('git', ['log', '--name-status', '--format=', '--find-renames', revision], {
-      cwd,
-      encoding: 'utf-8',
-      stdio: 'pipe',
-    }).trim()
+    const result = await history.traverse({
+      fromTag: range.fromTag,
+      tagPrefix: range.tagPrefix,
+      changeset: true,
+      traversers: [createChangesetTraverser()],
+    })
 
-    if (!output) {
-      return [] as string[]
-    }
-
-    return output
-      .split('\n')
-      .filter(Boolean)
-      .flatMap((line) => {
-        const payload = line.trim()
-        const parts = payload.split('\t').filter(Boolean)
-
-        if (parts.length >= 3 && /^[RC]/.test(parts[0]!)) {
-          return parts.slice(1)
-        }
-
-        return parts.slice(1)
-      })
+    return (result.results.get('changeset') as { paths: string[]; }).paths
   } catch {
     return null
   }
