@@ -67,6 +67,6 @@
   },
   "scripts": {
     "build": "vite build",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc -b tsconfig.typecheck.json"
   }
 }

@@ -5,6 +5,7 @@ import pluginTs from 'typescript-eslint'
 export default [
   {
     ignores: [
+      'artifacts/**',
       '.yarn/**',
       '.pnp.*',
       'coverage/**',

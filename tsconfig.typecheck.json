@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/conventional-git/tsconfig.typecheck.json" },
+    { "path": "./packages/conventional-bump/tsconfig.typecheck.json" },
+    { "path": "./packages/conventional-changelog/tsconfig.typecheck.json" },
+    { "path": "./packages/conventional-release/tsconfig.typecheck.json" }
+  ]
+}

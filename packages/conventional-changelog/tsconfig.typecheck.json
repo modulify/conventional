@@ -1,0 +1,26 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": false,
+    "outDir": "../../artifacts/tsc/conventional-changelog",
+    "tsBuildInfoFile": "../../artifacts/tsc/conventional-changelog.tsbuildinfo",
+    "paths": {
+      "@/*": ["./src/*"],
+      "~tests/*": ["./tests/*"],
+      "~types/*": ["./types/*"]
+    }
+  },
+  "references": [
+    { "path": "../conventional-git/tsconfig.typecheck.json" },
+    { "path": "../conventional-bump/tsconfig.typecheck.json" }
+  ],
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "types/**/*.ts",
+    "types/**/*.d.ts"
+  ]
+}

@@ -93,6 +93,6 @@
   },
   "scripts": {
     "build": "node ./scripts/build-cli.mjs --prepare && vite build && node ./scripts/build-cli.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc -b tsconfig.typecheck.json"
   }
 }

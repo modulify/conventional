@@ -16,11 +16,8 @@
     "moduleResolution": "Node",
     "paths": {
       "@/*": ["./src/*"],
-      "@modulify/conventional-bump": ["../conventional-bump/src/index.ts"],
-      "@modulify/conventional-changelog": ["../conventional-changelog/src/index.ts"],
-      "@modulify/conventional-git": ["../conventional-git/src/index.ts"],
       "~tests/*": ["./tests/*"],
-      "~types/*": ["./types/*", "../conventional-git/types/*"]
+      "~types/*": ["./types/*"]
     },
     "resolveJsonModule": true,
     "skipLibCheck": true,
