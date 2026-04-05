@@ -50,11 +50,13 @@ export default mergeConfig(common, defineConfig({
 
   plugins: [
     dts({
+      entryRoot: 'src',
       exclude: [
         'scripts/**/*.*',
         'tests/**/*.*',
       ],
       staticImport: true,
+      tsconfigPath: './tsconfig.build.json',
     }),
   ],
 }))

@@ -1,7 +1,10 @@
 import type { RenderContext } from '@/render'
+import type { Commit } from '@modulify/conventional-git/types/commit'
+import type { Client } from '@modulify/conventional-git'
 
 import { afterEach } from 'vitest'
 import { beforeEach } from 'vitest'
+import { writeChangelog } from '@/changelog'
 import { createRender } from '@/render'
 import { createWrite } from '@/write'
 import { describe } from 'vitest'
@@ -19,7 +22,6 @@ const __temporary = join(__dirname, 'tmp')
 
 describe('write', () => {
   let cwd: string
-  type ChangelogOptions = NonNullable<Parameters<typeof createWrite>[0]>
 
   const exec = (command: string) => execSync(command, {
     cwd,
@@ -29,6 +31,57 @@ describe('write', () => {
 
   const lastHash = () => exec('git rev-parse HEAD').trim()
   const shorten = (hash: string, length: number) => hash.substring(0, length)
+  const createGit = ({
+    url = 'https://github.com/modulify/conventional.git',
+    history = [] as Commit[],
+  } = {}): Pick<Client, 'url' | 'traverse'> => ({
+    url: async () => url,
+    traverse: (async ({ traversers }: {
+      traversers: Array<{
+        name: string;
+        onStart?: (context: { range: { from: string | null; to: string; }; commits: { total: number; }; }) => Promise<void> | void;
+        onCommit?: (commit: Commit, context: { range: { from: string | null; to: string; }; commits: { total: number; }; }) => Promise<void> | void;
+        onComplete?: (context: { range: { from: string | null; to: string; }; commits: { total: number; }; }) => Promise<unknown> | unknown;
+      }>;
+    }) => {
+      const context = {
+        range: {
+          from: null,
+          to: 'HEAD',
+        },
+        commits: {
+          total: 0,
+        },
+      }
+      const results = new Map<string, unknown>()
+
+      for (const traverser of traversers) {
+        await traverser.onStart?.(context)
+      }
+
+      for (const commit of history) {
+        context.commits.total += 1
+
+        for (const traverser of traversers) {
+          await traverser.onCommit?.(commit, context)
+        }
+      }
+
+      for (const traverser of traversers) {
+        results.set(traverser.name, await traverser.onComplete?.(context))
+      }
+
+      return {
+        range: {
+          ...context.range,
+        },
+        commits: {
+          ...context.commits,
+        },
+        results,
+      }
+    }) as Client['traverse'],
+  })
 
   beforeEach(() => {
     cwd = join(__temporary, randomUUID())
@@ -93,6 +146,19 @@ describe('write', () => {
 
   it('creates writer with default options', () => {
     expect(typeof createWrite()).toBe('function')
+  })
+
+  it('returns changes when helper has no output target', async () => {
+    await expect(writeChangelog('## 1.0.0')).resolves.toBe('## 1.0.0')
+  })
+
+  it('writes changelog through helper to a file', async () => {
+    const file = join(cwd, 'CHANGELOG.md')
+
+    await writeChangelog('## 1.0.0', { file })
+
+    expect(fs.readFileSync(file, 'utf-8')).toContain('# Changelog')
+    expect(fs.readFileSync(file, 'utf-8')).toContain('## 1.0.0')
   })
 
   it('ignores reverted commits when writing changelog', async () => {
@@ -492,10 +558,9 @@ describe('write', () => {
     const render = vi.fn(() => 'Rendered changelog')
 
     const write = createWrite({
-      git: {
-        url: async () => 'https://github.com/modulify/conventional.git',
-        commits: async function * () {},
-      } as unknown as ChangelogOptions['git'],
+      git: createGit({
+        url: 'https://github.com/modulify/conventional.git',
+      }),
       render,
     })
 
@@ -513,10 +578,9 @@ describe('write', () => {
     const render = vi.fn(() => 'Rendered changelog')
 
     const write = createWrite({
-      git: {
-        url: async () => 'git@gitlab.com:modulify/conventional.git',
-        commits: async function * () {},
-      } as unknown as ChangelogOptions['git'],
+      git: createGit({
+        url: 'git@gitlab.com:modulify/conventional.git',
+      }),
       render,
     })
 
@@ -533,10 +597,9 @@ describe('write', () => {
     const render = vi.fn(() => 'Rendered changelog')
 
     const write = createWrite({
-      git: {
-        url: async () => 'https://gitlab.com/modulify/release/core/conventional.git',
-        commits: async function * () {},
-      } as unknown as ChangelogOptions['git'],
+      git: createGit({
+        url: 'https://gitlab.com/modulify/release/core/conventional.git',
+      }),
       render,
     })
 
@@ -553,10 +616,9 @@ describe('write', () => {
     const render = vi.fn(() => 'Rendered changelog')
 
     const write = createWrite({
-      git: {
-        url: async () => 'git@gitlab.com:modulify/release/core/conventional.git',
-        commits: async function * () {},
-      } as unknown as ChangelogOptions['git'],
+      git: createGit({
+        url: 'git@gitlab.com:modulify/release/core/conventional.git',
+      }),
       render,
     })
 
@@ -598,10 +660,9 @@ describe('write', () => {
     const render = vi.fn(() => 'Rendered changelog')
 
     const write = createWrite({
-      git: {
-        url: async () => 'https://gitlab.com/modulify',
-        commits: async function * () {},
-      } as unknown as ChangelogOptions['git'],
+      git: createGit({
+        url: 'https://gitlab.com/modulify',
+      }),
       render,
     })
 
@@ -618,10 +679,9 @@ describe('write', () => {
     const render = vi.fn(() => 'Rendered changelog')
 
     const write = createWrite({
-      git: {
-        url: async () => 'file:///tmp/modulify/conventional.git',
-        commits: async function * () {},
-      } as unknown as ChangelogOptions['git'],
+      git: createGit({
+        url: 'file:///tmp/modulify/conventional.git',
+      }),
       render,
     })
 
@@ -631,6 +691,46 @@ describe('write', () => {
       host: expect.any(String),
       owner: expect.any(String),
       repository: expect.any(String),
+    }))
+  })
+
+  it('collects changelog sections from custom traverse implementation', async () => {
+    const render = vi.fn(() => 'Rendered changelog')
+
+    const write = createWrite({
+      git: createGit({
+        url: 'https://github.com/modulify/conventional.git',
+        history: [{
+          hash: 'abc1234',
+          type: 'feat',
+          scope: null,
+          subject: 'Added fallback path',
+          merge: null,
+          revert: null,
+          header: 'feat: Added fallback path',
+          body: null,
+          footer: null,
+          notes: [],
+          mentions: [],
+          references: [],
+          fields: {},
+          meta: {},
+        }],
+      }),
+      types: [{ type: 'feat', section: 'Features' }],
+      render,
+    })
+
+    await write('1.2.3')
+
+    expect(render).toHaveBeenCalledWith(expect.objectContaining({
+      version: '1.2.3',
+      sections: [{
+        title: 'Features',
+        commits: [expect.objectContaining({
+          subject: 'Added fallback path',
+        })],
+      }],
     }))
   })
 

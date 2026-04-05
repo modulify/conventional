@@ -1,3 +1,4 @@
+import { renderChangelog } from '@/changelog'
 import { DynamicLoader, createEnvironment, createRender, forge } from '@/render'
 import { describe } from 'vitest'
 import { expect } from 'vitest'
@@ -167,6 +168,15 @@ describe('render', () => {
     const render = createRender()
 
     expect(render()).toContain('##')
+  })
+
+  it('renders changelog through helper with default options', () => {
+    expect(renderChangelog('1.2.3', {
+      notes: {
+        highlights: [],
+        sections: [],
+      },
+    })).toContain('## 1.2.3')
   })
 
   it('renders section with custom template', () => {

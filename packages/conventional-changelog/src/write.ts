@@ -1,15 +1,17 @@
-import type { Commit } from '@modulify/conventional-git/types/commit'
+import type { ChangelogNotes } from './changelog'
 import type { CommitType } from '@modulify/conventional-bump'
 import type { RenderContext as _RenderContext } from './render'
 import type { RenderFunction } from './render'
 
 import { Client } from '@modulify/conventional-git'
+
 import { Writable } from 'node:stream'
 
-import { createRender } from './render'
-import { createFileWritable } from './output'
-
-import { DEFAULT_COMMIT_TYPES } from '@modulify/conventional-bump'
+import {
+  createChangelogCapacitor,
+  renderChangelog,
+  writeChangelog,
+} from './changelog'
 
 export interface RenderContext extends Omit<_RenderContext, 'sections' | 'highlights'> {
   [key: string]: unknown;
@@ -19,7 +21,7 @@ export interface ChangelogOptions {
   /** Working directory. */
   cwd?: string;
   /** Git client instance. */
-  git?: Client;
+  git?: Pick<Client, 'url' | 'traverse'>;
   /** Custom commit types configuration. */
   types?: CommitType[];
   /** Static header for the changelog file. */
@@ -34,16 +36,6 @@ export interface ChangelogOptions {
   output?: Writable;
 }
 
-const reverts = (commit: Commit) => (revert: NonNullable<Commit['revert']>) => {
-  if (commit.hash && revert.hash) {
-    return commit.hash.startsWith(revert.hash) || revert.hash.startsWith(commit.hash)
-  }
-
-  return revert.header === commit.header
-}
-
-const MATCH_SCP_REPOSITORY_URL = /^(?:[^@]+@)?([^:/]+):(.+)$/
-
 /**
  * Creates a write function.
  * @param options - Changelog writer options.
@@ -57,131 +49,27 @@ const MATCH_SCP_REPOSITORY_URL = /^(?:[^@]+@)?([^:/]+):(.+)$/
  */
 export const createWrite = (options: ChangelogOptions = {}) => {
   const git = options.git ?? new Client({ cwd: options.cwd })
-  const types = options.types ?? DEFAULT_COMMIT_TYPES
-  const header = options.header ?? '# Changelog'
-  const output = options.output ?? (options.file ? createFileWritable(options.file, header) : undefined)
-  const render = options.render ?? createRender()
 
   return async (version: string = '0.0.0') => {
-    const context = urlToContext(await git.url())
-    const commits = git.commits()
-    const sections = new Map<string, Commit[]>()
-    const highlights = new Map<string, { commit: Commit; text: string }[]>()
-
-    for (const t of types) {
-      if (!t.hidden && !sections.has(t.section)) {
-        sections.set(t.section, [])
-      }
-    }
-
-    const reverted: Array<NonNullable<Commit['revert']>> = []
-
-    for await (const commit of commits) {
-      if (reverted.some(reverts(commit))) continue
-      if (commit.revert) reverted.push(commit.revert)
-
-      if (commit.notes && commit.notes.length > 0) {
-        for (const note of commit.notes) {
-          const group = highlights.get(note.title)
-          if (group) {
-            group.push({ commit, text: note.text })
-          } else {
-            highlights.set(note.title, [{ commit, text: note.text }])
-          }
-        }
-      }
-
-      const type = types.find(t => t.type === commit.type)
-      if (type && sections.has(type.section)) {
-        sections.get(type.section)?.push(commit)
-      }
-    }
-
-    const changes = render({
-      version,
-      ...context,
-      ...options.context,
-      highlights: Array.from(highlights.entries())
-        .filter(([, notes]) => notes.length > 0)
-        .map(([title, notes]) => ({
-          title,
-          notes,
-        })),
-      sections: Array.from(sections.entries())
-        .filter(([, commits]) => commits.length > 0)
-        .map(([title, commits]) => ({
-          title,
-          commits: [...commits].reverse(),
-        })),
+    const result = await git.traverse({
+      traversers: [createChangelogCapacitor({
+        types: options.types,
+      })],
+    })
+    const notes = result.results.get('changelog') as ChangelogNotes
+    const changes = renderChangelog(version, {
+      notes,
+      context: options.context,
+      render: options.render,
+      url: await git.url(),
     })
 
-    if (output) {
-      await new Promise<void>((resolve, reject) => {
-        let finished = false
-
-        const fulfill = (e?: unknown) => e ? reject(e) : resolve()
-        const done = (e?: unknown) => {
-          if (finished) return
-          finished = true
-          output.off('error', done)
-          fulfill(e)
-        }
-
-        output.on('error', done)
-        output.write(changes, (e) => {
-          if (e) return done(e)
-          if (options.file && !options.output) {
-            output.end(done)
-          } else {
-            done()
-          }
-        })
-      })
-    }
+    await writeChangelog(changes, {
+      header: options.header,
+      file: options.file,
+      output: options.output,
+    })
 
     return changes
   }
-}
-
-function urlToContext (url: string) {
-  const normalized = normalizeRepositoryLocation(url)
-
-  if (!normalized) {
-    return undefined
-  }
-
-  const parts = normalized.path
-    .replace(/^\/+|\/+$/g, '')
-    .replace(/\.git$/, '')
-    .split('/')
-    .filter(Boolean)
-
-  if (parts.length < 2) {
-    return undefined
-  }
-
-  const repository = parts[parts.length - 1]
-  const owner = parts.slice(0, -1).join('/')
-
-  return {
-    host: normalized.host.includes('github.com') ? 'https://github.com' : normalized.host,
-    owner,
-    repository,
-  }
-}
-
-function normalizeRepositoryLocation (url: string) {
-  try {
-    const parsed = new URL(url)
-
-    return parsed.host && parsed.pathname
-      ? { host: parsed.host, path: parsed.pathname }
-      : undefined
-  } catch { /* empty */ }
-
-  const [, host, path] = MATCH_SCP_REPOSITORY_URL.exec(url) ?? []
-
-  return host && path
-    ? { host, path }
-    : undefined
 }
