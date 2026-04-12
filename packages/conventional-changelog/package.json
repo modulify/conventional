@@ -1,7 +1,7 @@
 {
   "name": "@modulify/conventional-changelog",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "ISC",
   "engines": {
     "node": ">=20.0.0"
@@ -26,8 +26,8 @@
     }
   },
   "dependencies": {
-    "@modulify/conventional-bump": "^0.0.0",
-    "@modulify/conventional-git": "^0.0.0",
+    "@modulify/conventional-bump": "^0.1.0",
+    "@modulify/conventional-git": "^0.1.0",
     "@types/nunjucks": "^3.2.6",
     "nunjucks": "^3.2.4"
   },

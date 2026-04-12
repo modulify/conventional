@@ -1089,11 +1089,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@modulify/conventional-bump@npm:^0.0.0, @modulify/conventional-bump@workspace:packages/conventional-bump":
+"@modulify/conventional-bump@npm:^0.1.0, @modulify/conventional-bump@workspace:packages/conventional-bump":
   version: 0.0.0-use.local
   resolution: "@modulify/conventional-bump@workspace:packages/conventional-bump"
   dependencies:
-    "@modulify/conventional-git": "npm:^0.0.0"
+    "@modulify/conventional-git": "npm:^0.1.0"
     "@types/node": "npm:^22.18.6"
     "@types/semver": "npm:^7.7.1"
     semver: "npm:^7.7.3"
@@ -1113,12 +1113,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@modulify/conventional-changelog@npm:^0.0.0, @modulify/conventional-changelog@workspace:packages/conventional-changelog":
+"@modulify/conventional-changelog@npm:^0.1.0, @modulify/conventional-changelog@workspace:packages/conventional-changelog":
   version: 0.0.0-use.local
   resolution: "@modulify/conventional-changelog@workspace:packages/conventional-changelog"
   dependencies:
-    "@modulify/conventional-bump": "npm:^0.0.0"
-    "@modulify/conventional-git": "npm:^0.0.0"
+    "@modulify/conventional-bump": "npm:^0.1.0"
+    "@modulify/conventional-git": "npm:^0.1.0"
     "@types/node": "npm:^22.18.6"
     "@types/nunjucks": "npm:^3.2.6"
     "@types/semver": "npm:^7.7.1"
@@ -1136,7 +1136,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@modulify/conventional-git@npm:^0.0.0, @modulify/conventional-git@workspace:packages/conventional-git":
+"@modulify/conventional-git@npm:^0.1.0, @modulify/conventional-git@workspace:packages/conventional-git":
   version: 0.0.0-use.local
   resolution: "@modulify/conventional-git@workspace:packages/conventional-git"
   dependencies:
@@ -1157,13 +1157,13 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@modulify/conventional-release@npm:^0.0.0, @modulify/conventional-release@workspace:packages/conventional-release":
+"@modulify/conventional-release@npm:^0.1.0, @modulify/conventional-release@workspace:packages/conventional-release":
   version: 0.0.0-use.local
   resolution: "@modulify/conventional-release@workspace:packages/conventional-release"
   dependencies:
-    "@modulify/conventional-bump": "npm:^0.0.0"
-    "@modulify/conventional-changelog": "npm:^0.0.0"
-    "@modulify/conventional-git": "npm:^0.0.0"
+    "@modulify/conventional-bump": "npm:^0.1.0"
+    "@modulify/conventional-changelog": "npm:^0.1.0"
+    "@modulify/conventional-git": "npm:^0.1.0"
     "@modulify/git-toolkit": "npm:^0.0.2"
     "@modulify/pkg": "npm:^1.0.1"
     "@types/node": "npm:^22.18.6"
@@ -1198,10 +1198,10 @@ __metadata:
     "@commitlint/cli": "npm:^20.4.1"
     "@commitlint/config-conventional": "npm:^20.4.1"
     "@eslint/js": "npm:^9.36.0"
-    "@modulify/conventional-bump": "npm:^0.0.0"
-    "@modulify/conventional-changelog": "npm:^0.0.0"
-    "@modulify/conventional-git": "npm:^0.0.0"
-    "@modulify/conventional-release": "npm:^0.0.0"
+    "@modulify/conventional-bump": "npm:^0.1.0"
+    "@modulify/conventional-changelog": "npm:^0.1.0"
+    "@modulify/conventional-git": "npm:^0.1.0"
+    "@modulify/conventional-release": "npm:^0.1.0"
     "@modulify/git-toolkit": "npm:^0.0.2"
     "@modulify/pkg": "npm:^1.0.1"
     "@types/node": "npm:^22.18.6"

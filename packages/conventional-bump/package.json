@@ -1,7 +1,7 @@
 {
   "name": "@modulify/conventional-bump",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "ISC",
   "engines": {
     "node": ">=20.0.0"
@@ -30,7 +30,7 @@
     }
   },
   "dependencies": {
-    "@modulify/conventional-git": "^0.0.0",
+    "@modulify/conventional-git": "^0.1.0",
     "semver": "^7.7.3"
   },
   "devDependencies": {
