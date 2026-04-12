@@ -9,10 +9,10 @@ Monorepo with tools for analyzing git history and creating releases according to
 
 ## Packages
 
-- [`@modulify/conventional-git`](./packages/conventional-git) — Thin wrapper over git with conventional-commit parsing and semantic tag helpers.
-- [`@modulify/conventional-bump`](./packages/conventional-bump) — Semantic-release helper that recommends the next version (major/minor/patch).
-- [`@modulify/conventional-changelog`](./packages/conventional-changelog) — Generate a changelog from your git history using Nunjucks templates.
-- [`@modulify/conventional-release`](./packages/conventional-release) — Library-first release orchestration package with a config-driven CLI.
+- [`@modulify/conventional-git`](./packages/conventional-git) [![npm version](https://img.shields.io/npm/v/%40modulify%2Fconventional-git?label=npm)](https://www.npmjs.com/package/@modulify/conventional-git) — Thin wrapper over git with conventional-commit parsing and semantic tag helpers.
+- [`@modulify/conventional-bump`](./packages/conventional-bump) [![npm version](https://img.shields.io/npm/v/%40modulify%2Fconventional-bump?label=npm)](https://www.npmjs.com/package/@modulify/conventional-bump) — Semantic-release helper that recommends the next version (major/minor/patch).
+- [`@modulify/conventional-changelog`](./packages/conventional-changelog) [![npm version](https://img.shields.io/npm/v/%40modulify%2Fconventional-changelog?label=npm)](https://www.npmjs.com/package/@modulify/conventional-changelog) — Generate a changelog from your git history using Nunjucks templates.
+- [`@modulify/conventional-release`](./packages/conventional-release) [![npm version](https://img.shields.io/npm/v/%40modulify%2Fconventional-release?label=npm)](https://www.npmjs.com/package/@modulify/conventional-release) — Library-first release orchestration package with a config-driven CLI.
 
 ## High-level release flow
 

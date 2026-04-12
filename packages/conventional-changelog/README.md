@@ -1,5 +1,6 @@
 # @modulify/conventional-changelog
 
+[![npm version](https://img.shields.io/npm/v/%40modulify%2Fconventional-changelog?label=npm)](https://www.npmjs.com/package/@modulify/conventional-changelog)
 [![codecov](https://codecov.io/gh/modulify/conventional/branch/main/graph/badge.svg?flag=conventional-changelog)](https://codecov.io/gh/modulify/conventional?flags[0]=conventional-changelog)
 
 [🌐 Translations](./docs/INDEX.md)
