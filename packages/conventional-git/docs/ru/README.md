@@ -2,6 +2,8 @@
 
 [![codecov](https://codecov.io/gh/modulify/conventional/branch/main/graph/badge.svg?flag=conventional-git)](https://codecov.io/gh/modulify/conventional?flags[0]=conventional-git)
 
+[🌐 Translations](../INDEX.md)
+
 Тонкая обертка над git, которая добавляет парсинг conventional-коммитов и помощники для семантических тегов.
 
 - Репозиторий: https://github.com/modulify/conventional
