@@ -18,7 +18,7 @@ Thin wrapper over git that adds conventional-commit parsing and semantic tag hel
 
 ## Quick start
 
-```
+```ts
 import { Client, packagePrefix } from '@modulify/conventional-git'
 
 const git = new Client()
@@ -88,7 +88,7 @@ const parse = createParser({
 
 Constructor:
 
-```
+```ts
 new Client(options?: { cwd?: string; git?: GitClient })
 ```
 
