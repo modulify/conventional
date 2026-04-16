@@ -19,7 +19,7 @@ based on your git history.
 
 ## Quick start
 
-```
+```ts
 import { ReleaseAdvisor } from '@modulify/conventional-bump'
 
 const advisor = new ReleaseAdvisor()
@@ -50,7 +50,7 @@ Creates an analyzer that reads commits from git and recommends the next semantic
 
 Constructor:
 
-```
+```ts
 new ReleaseAdvisor(options?: {
   cwd?: string;         // Working directory for git commands
   git?: Client;         // Custom @modulify/conventional-git client (for tests)
@@ -61,7 +61,7 @@ new ReleaseAdvisor(options?: {
 
 Method:
 
-```
+```ts
 advise(options?: {
   ignore?: (commit: Commit) => boolean; // Skip specific commits
   ignoreReverted?: boolean;             // Ignore commits that were later reverted (default: true)
@@ -78,7 +78,7 @@ Behavior highlights:
 
 ## Example: pre-1.0.0 workflow
 
-```
+```ts
 const advisor = new ReleaseAdvisor()
 const next = await advisor.advise({ preMajor: true })
 console.log(next?.type) // 'minor' or 'patch' for <1.0.0 projects
@@ -86,7 +86,7 @@ console.log(next?.type) // 'minor' or 'patch' for <1.0.0 projects
 
 ## Example: strict mode
 
-```
+```ts
 const next = await advisor.advise({ strict: true })
 if (!next) {
   console.log('No release-worthy changes since last tag')
