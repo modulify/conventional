@@ -2,6 +2,8 @@
 
 [![npm version](https://img.shields.io/npm/v/%40modulify%2Fconventional-release?label=npm)](https://www.npmjs.com/package/@modulify/conventional-release)
 
+[🌐 Translations](https://github.com/modulify/conventional/blob/main/packages/conventional-release/docs/INDEX.md)
+
 Release-core package for conventional workflows.
 
 This workspace combines:
