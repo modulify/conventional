@@ -2,8 +2,22 @@
   "compilerOptions": {
     "esModuleInterop": true,
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "target": "ES2017"
-  }
+  },
+  "include": [
+    "package.json",
+    "vitest.common.ts",
+    "vitest.config.ts",
+    "packages/*/package.json",
+    "packages/*/vite.config.common.ts",
+    "packages/*/vite.config.ts",
+    "packages/*/vitest.config.ts"
+  ],
+  "exclude": [
+    "packages/*/src/**/*",
+    "packages/*/tests/**/*",
+    "packages/*/types/**/*"
+  ]
 }
