@@ -3,6 +3,11 @@
   "type": "module",
   "version": "0.1.0",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/modulify/conventional.git",
+    "directory": "packages/conventional-git"
+  },
   "engines": {
     "node": ">=20.0.0"
   },

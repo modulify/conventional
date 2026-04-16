@@ -4,6 +4,11 @@
   "version": "0.1.0",
   "license": "ISC",
   "homepage": "https://github.com/modulify/conventional/tree/main/packages/conventional-release#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/modulify/conventional.git",
+    "directory": "packages/conventional-release"
+  },
   "engines": {
     "node": ">=20.0.0"
   },
