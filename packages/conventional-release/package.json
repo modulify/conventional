@@ -81,9 +81,9 @@
     "bin/*.cjs",
     "bin/*.js",
     "bin/*.mjs",
-    "dist/*.cjs",
-    "dist/*.mjs",
-    "dist/*.d.ts",
+    "dist/**/*.cjs",
+    "dist/**/*.mjs",
+    "dist/**/*.d.ts",
     "types/*.d.ts",
     "LICENSE.md",
     "README.md"

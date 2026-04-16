@@ -35,31 +35,38 @@ export default mergeConfig(common, defineConfig({
   build: {
     lib: {
       name,
-      formats: ['es', 'cjs'],
       entry: {
         'cli': resolve(__dirname, './src/cli.ts'),
         'index': resolve(__dirname, './src/index.ts'),
       },
-      fileName: (format, entryName) => {
-        const ext = {
-          es: 'mjs',
-          cjs: 'cjs',
-        }[format as 'es' | 'cjs']
-
-        if (entryName === 'cli') {
-          return `bin/cli.${ext}`
-        }
-
-        return `dist/${entryName}.${ext}`
-      },
     },
     minify: false,
-    rollupOptions: {
+    rolldownOptions: {
       external: isExternal,
-      output: {
-        exports: 'named',
-        dir: join(__dirname),
-      },
+      output: [
+        {
+          assetFileNames: 'dist/assets/[name]-[hash][extname]',
+          dir: join(__dirname),
+          entryFileNames: ({ name }) => name === 'cli'
+              ? 'bin/cli.mjs'
+              : 'dist/[name].mjs',
+          exports: 'named',
+          format: 'es',
+          preserveModules: true,
+          preserveModulesRoot: 'src',
+        },
+        {
+          assetFileNames: 'dist/assets/[name]-[hash][extname]',
+          dir: join(__dirname),
+          entryFileNames: ({ name }) => name === 'cli'
+            ? 'bin/cli.cjs'
+            : 'dist/[name].cjs',
+          exports: 'named',
+          format: 'cjs',
+          preserveModules: true,
+          preserveModulesRoot: 'src',
+        },
+      ],
     },
   },
 

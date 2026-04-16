@@ -1,4 +1,5 @@
 import {
+  readdirSync,
   chmodSync,
   mkdirSync,
   rmSync,
@@ -16,6 +17,12 @@ const cjsFile = join(bin, 'index.cjs')
 if (process.argv.includes('--prepare')) {
   rmSync(bin, { recursive: true, force: true })
   rmSync(dist, { recursive: true, force: true })
+
+  for (const entry of readdirSync(root)) {
+    if (/^src-[A-Za-z0-9_-]+\.(?:cjs|js|mjs)$/.test(entry)) {
+      rmSync(join(root, entry), { force: true })
+    }
+  }
 
   process.exit(0)
 }
