@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/%40modulify%2Fconventional-release?label=npm)](https://www.npmjs.com/package/@modulify/conventional-release)
 
-Release orchestration package for conventional workflows.
+Release-core package for conventional workflows.
 
 This workspace combines:
 - semantic version recommendation from `@modulify/conventional-bump`,
@@ -14,6 +14,22 @@ The package is library-first. It exposes:
 - `createScope()` to inspect what would be released,
 - `run()` to apply the release flow,
 - `conventional-release` as a config-driven CLI binary.
+
+## Scope and non-goals
+
+This package is intentionally focused on release-core responsibilities inside the repository:
+
+- discover the release scope
+- compute versions from commit history
+- update manifests and changelog files
+- finalize the release with a commit and tags
+
+It does not try to be an all-in-one delivery tool.
+In particular, `npm publish`, GitHub Releases, GitLab Releases, registry credentials, and deployment-specific CI steps are out of scope for this package.
+
+The intended layering is:
+- `@modulify/conventional-release` handles planning and repository-local release finalization
+- higher-level tools can add publishing, hosting, or CI-specific orchestration on top
 
 ## Installation
 
@@ -37,6 +53,9 @@ The package works in two stages:
 It resolves packages, filters workspaces, detects affected packages, and produces ordered release slices.
 2. `run(options)` resolves the same scope and applies side effects.
 It updates manifests, writes the changelog, creates a commit, and creates tags.
+
+That is the end of this package's responsibility boundary.
+Delivery steps outside the repository, such as package publication or hosted release creation, should be implemented above this layer.
 
 `Scope` is the declarative view of a release.
 `Slice` is one execution unit inside that scope.
@@ -105,6 +124,7 @@ Useful flags:
 - `--prerelease <channel>`: use `alpha`, `beta`, or `rc`
 
 The CLI reads the same repository configuration as the library API and wires a lifecycle reporter into `run()`.
+It stops after repository-local release finalization and does not publish artifacts.
 
 ## Inspect before running
 
