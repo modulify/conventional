@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/%40modulify%2Fconventional-bump?label=npm)](https://www.npmjs.com/package/@modulify/conventional-bump)
 [![codecov](https://codecov.io/gh/modulify/conventional/branch/main/graph/badge.svg?flag=conventional-bump)](https://codecov.io/gh/modulify/conventional?flags[0]=conventional-bump)
 
-[🌐 Translations](./docs/INDEX.md)
+[🌐 Translations](https://github.com/modulify/conventional/blob/main/packages/conventional-bump/docs/INDEX.md)
 
 Semantic-release helper that analyzes conventional commits and recommends the next version (major/minor/patch)
 based on your git history.
