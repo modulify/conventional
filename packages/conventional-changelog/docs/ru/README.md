@@ -2,7 +2,7 @@
 
 [![codecov](https://codecov.io/gh/modulify/conventional/branch/main/graph/badge.svg?flag=conventional-changelog)](https://codecov.io/gh/modulify/conventional?flags[0]=conventional-changelog)
 
-[🌐 Translations](./docs/INDEX.md)
+[🌐 Translations](../INDEX.md)
 
 Генерация changelog из истории git на основе conventional-коммитов.
 Группирует записи по разделам и пропускает коммиты, которые были отменены позже.
