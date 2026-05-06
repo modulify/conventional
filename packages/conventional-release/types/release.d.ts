@@ -62,6 +62,8 @@ export interface Options extends Range {
   mode?: Mode
   /** Explicit semantic release type override. */
   releaseAs?: SemverReleaseType
+  /** Whether automatic stable recommendations should be downgraded for pre-1.0.0 releases. */
+  preMajor?: boolean
   /** Prerelease channel used when generating prerelease versions. */
   prerelease?: 'alpha' | 'beta' | 'rc'
   /** Whether dependency installation should run after manifest updates, or extra arguments appended after the installation subcommand. */

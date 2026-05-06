@@ -168,6 +168,23 @@ console.log(result.slices)
 
 Когда используется `dry: true`, пакет все равно разрешает версии, теги и затронутые файлы, но пропускает side effects записи.
 
+## Pre-1.0 релизы
+
+Для пакетов ниже `1.0.0` автоматические conventional-рекомендации по умолчанию следуют pre-major семантике `@modulify/conventional-bump`:
+
+- рекомендованный `major` становится `minor`
+- рекомендованный `minor` становится `patch`
+- рекомендованный `patch` остается `patch`
+
+Явные переопределения `releaseAs` остаются приоритетными, поэтому `releaseAs: 'major'` все равно создает `1.0.0`.
+Установите `preMajor: false`, чтобы отключить автоматические понижения:
+
+```ts
+await run({
+  preMajor: false,
+})
+```
+
 ## Источники конфигурации
 
 Конфигурация разрешается в таком порядке:
@@ -220,6 +237,7 @@ export default config
 
 - `mode`: стратегия релиза, одна из `sync`, `async` или `hybrid`
 - `releaseAs`: явное переопределение semver bump, например `major`, `minor` или `patch`
+- `preMajor`: должны ли автоматические рекомендации понижаться для версий ниже `1.0.0`
 - `prerelease`: prerelease-канал, один из `alpha`, `beta` или `rc`
 - `fromTag`: явная нижняя граница тега для анализа advisory commit
 - `tagPrefix`: matcher тегов, используемый при анализе advisory commit

@@ -24,6 +24,7 @@ import { resolveNextVersion } from '@modulify/conventional-bump'
 import { update } from '@modulify/pkg'
 
 import { join, relative } from 'node:path'
+import semver from 'semver'
 
 import {
   packageIdentity,
@@ -101,6 +102,7 @@ async function executeSlice (
     recommendation: releaseMeta.recommendation,
     type: options.releaseAs,
     prerelease: options.prerelease,
+    preMajor: options.releaseAs ? false : options.preMajor ?? isPreMajorVersion(currentVersion),
   })
   const releaseType = String(release.type)
   const nextVersion = release.version
@@ -291,6 +293,12 @@ function resolveSliceCurrentVersion (slice: DiscoveredSlice, cwd: string) {
   }
 
   return versions[0]!
+}
+
+function isPreMajorVersion (version: string) {
+  return semver.valid(version)
+    ? semver.lt(version, '1.0.0')
+    : false
 }
 
 function createDefaultTagName (

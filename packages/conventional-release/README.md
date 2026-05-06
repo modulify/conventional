@@ -170,6 +170,23 @@ console.log(result.slices)
 
 When `dry: true` is used, the package still resolves versions, tags, and touched files, but skips write-side effects.
 
+## Pre-1.0 releases
+
+For packages below `1.0.0`, automatic conventional recommendations follow `@modulify/conventional-bump` pre-major semantics by default:
+
+- recommended `major` becomes `minor`
+- recommended `minor` becomes `patch`
+- recommended `patch` stays `patch`
+
+Explicit `releaseAs` overrides stay authoritative, so `releaseAs: 'major'` still produces `1.0.0`.
+Set `preMajor: false` to opt out of automatic downgrades:
+
+```ts
+await run({
+  preMajor: false,
+})
+```
+
 ## Configuration sources
 
 Configuration is resolved in this order:
@@ -222,6 +239,7 @@ The most important public options are:
 
 - `mode`: release strategy, one of `sync`, `async`, or `hybrid`
 - `releaseAs`: explicit semver bump override such as `major`, `minor`, or `patch`
+- `preMajor`: whether automatic recommendations should be downgraded below `1.0.0`
 - `prerelease`: prerelease channel, one of `alpha`, `beta`, or `rc`
 - `fromTag`: explicit lower bound tag for advisory commit analysis
 - `tagPrefix`: tag matcher used during advisory commit analysis

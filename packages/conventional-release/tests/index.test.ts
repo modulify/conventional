@@ -412,6 +412,122 @@ describe('runRelease', () => {
     }))
   })
 
+  it('downgrades automatic breaking recommendations for pre-1.0.0 packages', async () => {
+    const root = createPackage({
+      name: '@scope/root',
+      path: '/repo',
+      manifest: { version: '0.2.4' },
+    })
+    const { runtime } = createRuntime({
+      root,
+      dry: true,
+      recommendation: { type: 'major' },
+    })
+
+    const result = await runReleaseWithRuntime(runtime)
+    const step = onlySlice(result.slices)
+
+    expect(step).toEqual(expect.objectContaining({
+      currentVersion: '0.2.4',
+      nextVersion: '0.3.0',
+      releaseType: 'minor',
+    }))
+  })
+
+  it('downgrades automatic feature recommendations for pre-1.0.0 packages', async () => {
+    const root = createPackage({
+      name: '@scope/root',
+      path: '/repo',
+      manifest: { version: '0.2.4' },
+    })
+    const { runtime } = createRuntime({
+      root,
+      dry: true,
+      recommendation: { type: 'minor' },
+    })
+
+    const result = await runReleaseWithRuntime(runtime)
+    const step = onlySlice(result.slices)
+
+    expect(step).toEqual(expect.objectContaining({
+      currentVersion: '0.2.4',
+      nextVersion: '0.2.5',
+      releaseType: 'patch',
+    }))
+  })
+
+  it('keeps explicit major release overrides for pre-1.0.0 packages', async () => {
+    const root = createPackage({
+      name: '@scope/root',
+      path: '/repo',
+      manifest: { version: '0.2.4' },
+    })
+    const { runtime } = createRuntime({
+      root,
+      dry: true,
+      recommendation: { type: 'major' },
+    })
+
+    const result = await runReleaseWithRuntime(runtime, {
+      releaseAs: 'major',
+    })
+    const step = onlySlice(result.slices)
+
+    expect(step).toEqual(expect.objectContaining({
+      currentVersion: '0.2.4',
+      nextVersion: '1.0.0',
+      releaseType: 'major',
+    }))
+  })
+
+  it('supports opting out of automatic pre-1.0.0 recommendation downgrades', async () => {
+    const root = createPackage({
+      name: '@scope/root',
+      path: '/repo',
+      manifest: { version: '0.2.4' },
+    })
+    const { runtime } = createRuntime({
+      root,
+      dry: true,
+      recommendation: { type: 'major' },
+    })
+
+    const result = await runReleaseWithRuntime(runtime, {
+      preMajor: false,
+    })
+    const step = onlySlice(result.slices)
+
+    expect(step).toEqual(expect.objectContaining({
+      currentVersion: '0.2.4',
+      nextVersion: '1.0.0',
+      releaseType: 'major',
+    }))
+  })
+
+  it('does not treat invalid current versions as pre-1.0.0 releases', async () => {
+    const root = createPackage({
+      name: '@scope/root',
+      path: '/repo',
+      manifest: { version: 'invalid-version' },
+    })
+    const { runtime } = createRuntime({
+      root,
+      dry: true,
+      recommendation: { type: 'major' },
+    })
+
+    const result = await runReleaseWithRuntime(runtime)
+    const step = onlySlice(result.slices)
+
+    expect(step).toEqual(expect.objectContaining({
+      currentVersion: 'invalid-version',
+      nextVersion: 'invalid-version',
+      releaseType: 'major',
+      changed: false,
+    }))
+    expect(runtime.history.url).not.toHaveBeenCalled()
+  })
+
   it('supports custom release options and custom messages', async () => {
     const root = createPackage({
       path: '/repo',
