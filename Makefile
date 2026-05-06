@@ -8,19 +8,18 @@ YARN=yarn
 	cp .yarnrc.dist.yml .yarnrc.yml
 	$(TARGET_OK)
 
-.PHONY: pnp
-pnp: package.json yarn.lock ## Installs dependencies
+.PHONY: install
+install: package.json yarn.lock ## Installs dependencies
 	$(TARGET_HEADER)
 	$(YARN) install --silent
-	@touch .pnp.loader.mjs || true
 
 .PHONY: build
-build: pnp ## Creates a dist catalogue with library build
+build: install ## Creates a dist catalogue with library build
 	$(TARGET_HEADER)
 	$(YARN) build
 
 .PHONY: eslint
-eslint: pnp ## Runs eslint
+eslint: install ## Runs eslint
 	$(TARGET_HEADER)
 ifdef cli
 	$(YARN) eslint $(cli)
@@ -29,12 +28,12 @@ else
 endif
 
 .PHONY: typecheck
-typecheck: pnp ## Runs typecheck for all workspaces
+typecheck: install ## Runs typecheck for all workspaces
 	$(TARGET_HEADER)
 	$(YARN) typecheck
 
 .PHONY: peers-check
-peers-check: pnp ## Validates peer requirements
+peers-check: install ## Validates peer requirements
 	$(TARGET_HEADER)
 	$(YARN) peers:check
 
@@ -52,7 +51,7 @@ ci-actionlint: ## Runs actionlint for GitHub Actions workflows
 	$(TARGET_OK)
 
 .PHONY: test
-test: pnp ## Runs autotests
+test: install ## Runs autotests
 	$(TARGET_HEADER)
 ifdef cli
 	$(YARN) test $(cli) --passWithNoTests
@@ -61,7 +60,7 @@ else
 endif
 
 .PHONY: test-coverage
-test-coverage: pnp ## Runs autotests with --coverage
+test-coverage: install ## Runs autotests with --coverage
 	$(TARGET_HEADER)
 	$(YARN) test:coverage
 

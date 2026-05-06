@@ -7,7 +7,6 @@ export default [
     ignores: [
       'artifacts/**',
       '.yarn/**',
-      '.pnp.*',
       'coverage/**',
       'packages/*/bin/**',
       'packages/*/*.timestamp-*.mjs',
