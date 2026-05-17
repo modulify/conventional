@@ -84,9 +84,14 @@ jobs:
       run: |
         yarn build
 
-    - name: Use npm 11 for publish
+    - name: Use Node.js 24.x for publish
+      uses: actions/setup-node@v4
+      with:
+        node-version: 24.x
+        registry-url: https://registry.npmjs.org
+
+    - name: Check npm version for publish
       run: |
-        npm install -g npm@11
         npm --version
 
     - name: Publish packages
