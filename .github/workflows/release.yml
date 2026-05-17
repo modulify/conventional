@@ -98,9 +98,14 @@ jobs:
       env:
         NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         PRERELEASE: ${{ github.event.inputs.prerelease || 'none' }}
+        YARN_NPM_REGISTRY_SERVER: https://registry.npmjs.org
       run: |
         NPM_PUBLISH_ARGS=(--access public)
         YARN_PUBLISH_ARGS=(--access public --tolerate-republish)
+
+        if [ "$NPM_TOKEN" = "NONE" ]; then
+          NPM_TOKEN=""
+        fi
 
         if [ "$PRERELEASE" != "none" ]; then
           NPM_PUBLISH_ARGS+=(--tag "$PRERELEASE")
