@@ -1,8 +1,10 @@
 # @modulify/conventional-release
 
-[🌐 Translations](../INDEX.md)
-
 Пакет release-core для conventional workflow.
+
+[![codecov](https://codecov.io/gh/modulify/conventional/branch/main/graph/badge.svg?flag=conventional-release)](https://codecov.io/gh/modulify/conventional?flags[0]=conventional-release)
+
+[🌐 Translations](../INDEX.md)
 
 Этот workspace объединяет:
 - рекомендацию следующей семантической версии из `@modulify/conventional-bump`,

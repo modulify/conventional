@@ -1,10 +1,11 @@
 # @modulify/conventional-release
 
+Release-core package for conventional workflows.
+
 [![npm version](https://img.shields.io/npm/v/%40modulify%2Fconventional-release?label=npm)](https://www.npmjs.com/package/@modulify/conventional-release)
+[![codecov](https://codecov.io/gh/modulify/conventional/branch/main/graph/badge.svg?flag=conventional-release)](https://codecov.io/gh/modulify/conventional?flags[0]=conventional-release)
 
 [🌐 Translations](https://github.com/modulify/conventional/blob/main/packages/conventional-release/docs/INDEX.md)
-
-Release-core package for conventional workflows.
 
 This workspace combines:
 - semantic version recommendation from `@modulify/conventional-bump`,
