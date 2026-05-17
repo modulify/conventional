@@ -112,22 +112,38 @@ jobs:
           YARN_PUBLISH_ARGS+=(--tag "$PRERELEASE")
         fi
 
+        PUBLISH_WORKSPACES=()
+
+        add_publish_workspace() {
+          if [ -n "$(git diff-tree --no-commit-id --name-only -r HEAD -- "$2")" ]; then
+            PUBLISH_WORKSPACES+=("$1")
+          fi
+        }
+
+        add_publish_workspace "@modulify/conventional-git" "packages/conventional-git/package.json"
+        add_publish_workspace "@modulify/conventional-bump" "packages/conventional-bump/package.json"
+        add_publish_workspace "@modulify/conventional-changelog" "packages/conventional-changelog/package.json"
+        add_publish_workspace "@modulify/conventional-release" "packages/conventional-release/package.json"
+
+        if [ "${#PUBLISH_WORKSPACES[@]}" -eq 0 ]; then
+          echo "No workspace package versions changed; skipping npm publish"
+          exit 0
+        fi
+
         if [ -n "$NPM_TOKEN" ]; then
           echo "Publishing with NPM_TOKEN"
           unset ACTIONS_ID_TOKEN_REQUEST_TOKEN
           unset ACTIONS_ID_TOKEN_REQUEST_URL
 
-          YARN_NPM_AUTH_TOKEN="$NPM_TOKEN" yarn workspace @modulify/conventional-git npm publish "${YARN_PUBLISH_ARGS[@]}"
-          YARN_NPM_AUTH_TOKEN="$NPM_TOKEN" yarn workspace @modulify/conventional-bump npm publish "${YARN_PUBLISH_ARGS[@]}"
-          YARN_NPM_AUTH_TOKEN="$NPM_TOKEN" yarn workspace @modulify/conventional-changelog npm publish "${YARN_PUBLISH_ARGS[@]}"
-          YARN_NPM_AUTH_TOKEN="$NPM_TOKEN" yarn workspace @modulify/conventional-release npm publish "${YARN_PUBLISH_ARGS[@]}"
+          for WORKSPACE in "${PUBLISH_WORKSPACES[@]}"; do
+            YARN_NPM_AUTH_TOKEN="$NPM_TOKEN" yarn workspace "$WORKSPACE" npm publish "${YARN_PUBLISH_ARGS[@]}"
+          done
         else
           echo "Publishing with npm trusted publishing"
 
-          npm publish --workspace @modulify/conventional-git "${NPM_PUBLISH_ARGS[@]}"
-          npm publish --workspace @modulify/conventional-bump "${NPM_PUBLISH_ARGS[@]}"
-          npm publish --workspace @modulify/conventional-changelog "${NPM_PUBLISH_ARGS[@]}"
-          npm publish --workspace @modulify/conventional-release "${NPM_PUBLISH_ARGS[@]}"
+          for WORKSPACE in "${PUBLISH_WORKSPACES[@]}"; do
+            npm publish --workspace "$WORKSPACE" "${NPM_PUBLISH_ARGS[@]}"
+          done
         fi
 
     - name: Push release commit and tags
