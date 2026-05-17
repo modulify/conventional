@@ -26,6 +26,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
@@ -44,6 +45,7 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: 22.x
+        registry-url: https://registry.npmjs.org
 
     - name: Run tests before release
       uses: ./.github/actions/run-tests
@@ -78,25 +80,39 @@ jobs:
       run: |
         yarn build
 
+    - name: Use npm 11 for publish
+      run: |
+        npm install -g npm@11
+        npm --version
+
     - name: Publish packages
       env:
-        YARN_NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         PRERELEASE: ${{ github.event.inputs.prerelease || 'none' }}
       run: |
-        if [ -z "$YARN_NPM_AUTH_TOKEN" ]; then
-          echo "NPM_TOKEN is required"
-          exit 1
-        fi
-
-        PUBLISH_ARGS=(--access public --tolerate-republish)
+        NPM_PUBLISH_ARGS=(--access public)
+        YARN_PUBLISH_ARGS=(--access public --tolerate-republish)
 
         if [ "$PRERELEASE" != "none" ]; then
-          PUBLISH_ARGS+=(--tag "$PRERELEASE")
+          NPM_PUBLISH_ARGS+=(--tag "$PRERELEASE")
+          YARN_PUBLISH_ARGS+=(--tag "$PRERELEASE")
         fi
 
-        yarn workspace @modulify/conventional-git npm publish "${PUBLISH_ARGS[@]}"
-        yarn workspace @modulify/conventional-bump npm publish "${PUBLISH_ARGS[@]}"
-        yarn workspace @modulify/conventional-changelog npm publish "${PUBLISH_ARGS[@]}"
+        if [ -n "$NPM_TOKEN" ]; then
+          echo "Publishing with NPM_TOKEN"
+          unset ACTIONS_ID_TOKEN_REQUEST_TOKEN
+          unset ACTIONS_ID_TOKEN_REQUEST_URL
+
+          YARN_NPM_AUTH_TOKEN="$NPM_TOKEN" yarn workspace @modulify/conventional-git npm publish "${YARN_PUBLISH_ARGS[@]}"
+          YARN_NPM_AUTH_TOKEN="$NPM_TOKEN" yarn workspace @modulify/conventional-bump npm publish "${YARN_PUBLISH_ARGS[@]}"
+          YARN_NPM_AUTH_TOKEN="$NPM_TOKEN" yarn workspace @modulify/conventional-changelog npm publish "${YARN_PUBLISH_ARGS[@]}"
+        else
+          echo "Publishing with npm trusted publishing"
+
+          npm publish --workspace @modulify/conventional-git "${NPM_PUBLISH_ARGS[@]}"
+          npm publish --workspace @modulify/conventional-bump "${NPM_PUBLISH_ARGS[@]}"
+          npm publish --workspace @modulify/conventional-changelog "${NPM_PUBLISH_ARGS[@]}"
+        fi
 
     - name: Push release commit and tags
       run: |
