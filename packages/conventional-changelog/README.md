@@ -1,13 +1,13 @@
 # @modulify/conventional-changelog
 
+Generate a changelog from your git history using conventional commits.
+Groups entries by sections you define and skips commits reverted later.
+Customizable with Nunjucks templates.
+
 [![npm version](https://img.shields.io/npm/v/%40modulify%2Fconventional-changelog?label=npm)](https://www.npmjs.com/package/@modulify/conventional-changelog)
 [![codecov](https://codecov.io/gh/modulify/conventional/branch/main/graph/badge.svg?flag=conventional-changelog)](https://codecov.io/gh/modulify/conventional?flags[0]=conventional-changelog)
 
 [🌐 Translations](https://github.com/modulify/conventional/blob/main/packages/conventional-changelog/docs/INDEX.md)
-
-Generate a changelog from your git history using conventional commits.
-Groups entries by sections you define and skips commits reverted later.
-Customizable with Nunjucks templates.
 
 - Repository: https://github.com/modulify/conventional
 - Spec: https://www.conventionalcommits.org/en/v1.0.0/
