@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+### Bug Fixes
+
+* **conventional-release:** Pre-major auto releases were preserved ([843ca01](https://github.com/modulify/conventional/commit/843ca01c48484c146f4786659a4410170751735c))
+
 ## 0.1.0
 
 ### Features
