@@ -99,6 +99,7 @@ export async function discover (
     })
     : createSlices({
       mode,
+      packages: discovered,
       affected,
       cwd: runtime.cwd,
       fromTag: options.fromTag,
@@ -174,26 +175,26 @@ export function packageIdentity (pkg: Package, cwd: string) {
 
 function createSlices ({
   mode,
+  packages,
   affected,
   cwd,
   fromTag,
   tagPrefix,
 }: {
   mode: SliceMode
+  packages: Package[]
   affected: Package[]
   cwd: string
   fromTag?: string
   tagPrefix?: string | RegExp
 }): DiscoveredSlice[] {
-  const touched = affected
-
   if (mode === 'sync') {
-    return touched.length
+    return affected.length
       ? [{
         id: 'sync:default',
         kind: 'sync',
         mode: 'sync',
-        packages: touched,
+        packages,
         range: {
           fromTag,
           tagPrefix,
@@ -202,7 +203,7 @@ function createSlices ({
       : [] as DiscoveredSlice[]
   }
 
-  return touched.map((pkg) => ({
+  return affected.map((pkg) => ({
     id: `async:${packageIdentity(pkg, cwd)}`,
     kind: 'async',
     mode: 'async',

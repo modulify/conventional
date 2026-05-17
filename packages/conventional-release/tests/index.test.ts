@@ -1865,7 +1865,7 @@ describe('createReleaseRuntime', () => {
     }
   })
 
-  it('updates only affected packages for sync mode based on commits since the last tag', async () => {
+  it('updates all selected packages for sync mode when any package changed since the last tag', async () => {
     const cwd = mkdtempSync(join(tmpdir(), 'conventional-release-sync-affected-'))
     const exec = (command: string) => execSync(command, {
       cwd,
@@ -1913,15 +1913,15 @@ describe('createReleaseRuntime', () => {
       })
 
       expect(result.changed).toBe(true)
+      expect(result.files).toContain('package.json')
+      expect(result.files).toContain('packages/a/package.json')
       expect(result.files).toContain('packages/b/package.json')
-      expect(result.files).not.toContain('package.json')
-      expect(result.files).not.toContain('packages/a/package.json')
     } finally {
       rmSync(cwd, { recursive: true, force: true })
     }
   })
 
-  it('updates root package when only root files changed since the last tag', async () => {
+  it('updates all selected packages for sync mode when only root files changed since the last tag', async () => {
     const cwd = mkdtempSync(join(tmpdir(), 'conventional-release-sync-root-'))
     const exec = (command: string) => execSync(command, {
       cwd,
@@ -1962,7 +1962,7 @@ describe('createReleaseRuntime', () => {
 
       expect(result.changed).toBe(true)
       expect(result.files).toContain('package.json')
-      expect(result.files).not.toContain('packages/feature/package.json')
+      expect(result.files).toContain('packages/feature/package.json')
     } finally {
       rmSync(cwd, { recursive: true, force: true })
     }
@@ -2051,8 +2051,8 @@ describe('createReleaseRuntime', () => {
       })
 
       expect(result.changed).toBe(true)
+      expect(result.files).toContain('package.json')
       expect(result.files).toContain('packages/feature/package.json')
-      expect(result.files).not.toContain('package.json')
     } finally {
       rmSync(cwd, { recursive: true, force: true })
     }
