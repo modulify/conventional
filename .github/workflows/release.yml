@@ -120,12 +120,14 @@ jobs:
           YARN_NPM_AUTH_TOKEN="$NPM_TOKEN" yarn workspace @modulify/conventional-git npm publish "${YARN_PUBLISH_ARGS[@]}"
           YARN_NPM_AUTH_TOKEN="$NPM_TOKEN" yarn workspace @modulify/conventional-bump npm publish "${YARN_PUBLISH_ARGS[@]}"
           YARN_NPM_AUTH_TOKEN="$NPM_TOKEN" yarn workspace @modulify/conventional-changelog npm publish "${YARN_PUBLISH_ARGS[@]}"
+          YARN_NPM_AUTH_TOKEN="$NPM_TOKEN" yarn workspace @modulify/conventional-release npm publish "${YARN_PUBLISH_ARGS[@]}"
         else
           echo "Publishing with npm trusted publishing"
 
           npm publish --workspace @modulify/conventional-git "${NPM_PUBLISH_ARGS[@]}"
           npm publish --workspace @modulify/conventional-bump "${NPM_PUBLISH_ARGS[@]}"
           npm publish --workspace @modulify/conventional-changelog "${NPM_PUBLISH_ARGS[@]}"
+          npm publish --workspace @modulify/conventional-release "${NPM_PUBLISH_ARGS[@]}"
         fi
 
     - name: Push release commit and tags
