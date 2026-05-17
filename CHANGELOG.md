@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+### Bug Fixes
+
+* **conventional-release:** Sync releases were expanded to selected packages ([dd61a82](https://github.com/modulify/conventional/commit/dd61a82335f174f26fff260dff2284385cfdc980))
+
 ## 0.1.1
 
 ### Bug Fixes
