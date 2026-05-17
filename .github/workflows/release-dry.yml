@@ -4,18 +4,22 @@ on:
   workflow_dispatch:
     inputs:
       release_as:
-        description: Release type override (major|minor|patch)
+        description: Release type (auto|major|minor|patch)
         required: false
         type: choice
+        default: auto
         options:
+          - auto
           - major
           - minor
           - patch
       prerelease:
-        description: Prerelease channel (alpha|beta|rc)
+        description: Prerelease channel (none|alpha|beta|rc)
         required: false
         type: choice
+        default: none
         options:
+          - none
           - alpha
           - beta
           - rc
@@ -46,16 +50,16 @@ jobs:
 
     - name: Run release dry run
       env:
-        RELEASE_AS: ${{ github.event.inputs.release_as || '' }}
-        PRERELEASE: ${{ github.event.inputs.prerelease || '' }}
+        RELEASE_AS: ${{ github.event.inputs.release_as || 'auto' }}
+        PRERELEASE: ${{ github.event.inputs.prerelease || 'none' }}
       run: |
         ARGS=()
 
-        if [ -n "$RELEASE_AS" ]; then
+        if [ "$RELEASE_AS" != "auto" ]; then
           ARGS+=(--release-as "$RELEASE_AS")
         fi
 
-        if [ -n "$PRERELEASE" ]; then
+        if [ "$PRERELEASE" != "none" ]; then
           ARGS+=(--prerelease "$PRERELEASE")
         fi
 
