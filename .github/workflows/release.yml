@@ -58,6 +58,10 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+    - name: Build release CLI
+      run: |
+        yarn workspace @modulify/conventional-release build
+
     - name: Run release
       env:
         HUSKY: "0"
