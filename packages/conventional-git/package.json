@@ -31,7 +31,7 @@
     }
   },
   "dependencies": {
-    "@modulify/git-toolkit": "^0.0.2",
+    "@modulify/git-toolkit": "^0.0.3",
     "semver": "^7.7.4"
   },
   "devDependencies": {
