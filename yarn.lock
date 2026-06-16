@@ -992,7 +992,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@modulify/conventional-git@workspace:packages/conventional-git"
   dependencies:
-    "@modulify/git-toolkit": "npm:^0.0.2"
+    "@modulify/git-toolkit": "npm:^0.0.3"
     "@types/node": "npm:^25.6.0"
     "@types/semver": "npm:^7.7.1"
     semver: "npm:^7.7.4"
@@ -1016,7 +1016,7 @@ __metadata:
     "@modulify/conventional-bump": "npm:^0.1.2"
     "@modulify/conventional-changelog": "npm:^0.1.2"
     "@modulify/conventional-git": "npm:^0.1.2"
-    "@modulify/git-toolkit": "npm:^0.0.2"
+    "@modulify/git-toolkit": "npm:^0.0.3"
     "@modulify/pkg": "npm:^1.0.1"
     "@types/node": "npm:^25.6.0"
     "@types/semver": "npm:^7.7.1"
@@ -1054,7 +1054,7 @@ __metadata:
     "@modulify/conventional-changelog": "npm:^0.1.2"
     "@modulify/conventional-git": "npm:^0.1.2"
     "@modulify/conventional-release": "npm:^0.1.2"
-    "@modulify/git-toolkit": "npm:^0.0.2"
+    "@modulify/git-toolkit": "npm:^0.0.3"
     "@modulify/pkg": "npm:^1.0.1"
     "@types/node": "npm:^25.6.0"
     "@types/semver": "npm:^7.7.1"
@@ -1075,15 +1075,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@modulify/git-toolkit@npm:^0.0.2":
-  version: 0.0.2
-  resolution: "@modulify/git-toolkit@npm:0.0.2"
+"@modulify/git-toolkit@npm:^0.0.3":
+  version: 0.0.3
+  resolution: "@modulify/git-toolkit@npm:0.0.3"
   peerDependencies:
     "@types/node": ">=20"
   peerDependenciesMeta:
     "@types/node":
       optional: true
-  checksum: 10/0bbdf48479e81191a53712fc9436a4ecf911b2c252b01cccb9c61e5f951165398faa474c1c2c38888b9aeeedd62b0c017fb55f8f3894c8a9f68dbb8681a46814
+  checksum: 10/804ec06d8daa9719bbc11a8f0dcdda3e11324ccda030c133b11f86d0e7695b39f79fd413f21bd4c5633557a4ffeba9e2dc174bca95b83378266e917dd75c2bfa
   languageName: node
   linkType: hard
 
