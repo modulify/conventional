@@ -75,8 +75,6 @@ export default mergeConfig(common, defineConfig({
       entryRoot: 'src',
       exclude: [
         'bin/**/*.*',
-        'src/cli.ts',
-        'src/cli/**/*.*',
         'scripts/**/*.*',
         'tests/**/*.*',
       ],

@@ -19,6 +19,12 @@
       "require": "./dist/index.cjs",
       "default": "./dist/index.mjs"
     },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "import": "./bin/cli.mjs",
+      "require": "./bin/cli.cjs",
+      "default": "./bin/cli.mjs"
+    },
     "./types": {
       "types": "./types/index.d.ts",
       "default": "./types/index.d.ts"

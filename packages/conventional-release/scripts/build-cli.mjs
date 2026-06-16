@@ -32,19 +32,60 @@ writeFileSync(esmFile, `#!/usr/bin/env node
 
 import { main } from './cli.mjs'
 
+function flush (stream) {
+  return new Promise((resolve) => {
+    if (!stream.writable) {
+      resolve()
+      return
+    }
+
+    stream.write('', () => resolve())
+  })
+}
+
+async function exit (code) {
+  process.exitCode = code
+  await Promise.all([
+    flush(process.stdout),
+    flush(process.stderr),
+  ])
+  process.exit(code)
+}
+
 try {
   await main(process.argv)
+  await exit(0)
 } catch {
-  process.exit(1)
+  await exit(1)
 }
 `)
 writeFileSync(cjsFile, `#!/usr/bin/env node
 
 const { main } = require('./cli.cjs')
 
-Promise.resolve(main(process.argv)).catch(() => {
-  process.exit(1)
-})
+function flush (stream) {
+  return new Promise((resolve) => {
+    if (!stream.writable) {
+      resolve()
+      return
+    }
+
+    stream.write('', () => resolve())
+  })
+}
+
+async function exit (code) {
+  process.exitCode = code
+  await Promise.all([
+    flush(process.stdout),
+    flush(process.stderr),
+  ])
+  process.exit(code)
+}
+
+Promise.resolve(main(process.argv))
+  .then(() => exit(0))
+  .catch(() => exit(1))
 `)
 chmodSync(esmFile, 0o755)
 chmodSync(cjsFile, 0o755)

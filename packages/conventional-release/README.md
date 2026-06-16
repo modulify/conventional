@@ -129,6 +129,57 @@ Useful flags:
 The CLI reads the same repository configuration as the library API and wires a lifecycle reporter into `run()`.
 It stops after repository-local release finalization and does not publish artifacts.
 
+## CLI API
+
+The CLI building blocks are exported from `@modulify/conventional-release/cli` for projects that need their own `main()` around the release core.
+This subpath is the public API for reusing argument parsing, formatted console output, and the built-in lifecycle reporter without depending on private source paths.
+
+```ts
+import { GitCommander } from '@modulify/git-toolkit'
+import { Runner } from '@modulify/git-toolkit/shell'
+import { run } from '@modulify/conventional-release'
+import {
+  ConsoleOutput,
+  Output,
+  createReporter,
+  parseArgv,
+} from '@modulify/conventional-release/cli'
+
+export async function main (argv = process.argv) {
+  const cwd = process.cwd()
+  const options = await parseArgv(argv)
+  const output = new Output({
+    dry: options.dry,
+    output: new ConsoleOutput(),
+  })
+  const git = new GitCommander({ sh: new Runner(cwd) })
+
+  await run({
+    cwd,
+    dry: options.dry,
+    releaseAs: options.releaseAs,
+    prerelease: options.prerelease,
+    reporter: createReporter({
+      output,
+      git,
+      showTags: options.tags,
+      verbosity: options.verbose
+        ? 'detailed'
+        : 'summary',
+    }),
+  })
+}
+```
+
+If a custom CLI imports `@modulify/git-toolkit` directly, add it as a direct development dependency in that project.
+
+The subpath exports:
+
+- `main()` for the same CLI entrypoint used by the package binary
+- `parseArgv()`, `CliOptions`, `CliParseError`, and `DEFAULTS` for CLI option parsing
+- `createReporter()`, `ReporterOptions`, `ReporterGit`, and `ReporterVerbosity` for wiring release lifecycle output
+- `Output`, `ConsoleOutput`, `BufferedOutput`, `MessageOutput`, and `OutputTheme` for formatted output or custom message sinks
+
 ## Inspect before running
 
 Use `createScope()` when you want a dry, deterministic view of the release shape:

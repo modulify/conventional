@@ -1,7 +1,10 @@
-import chalk from 'chalk'
-import figures from 'figures'
+import chalkModule from 'chalk'
+import figuresModule from 'figures'
 
 import * as util from 'node:util'
+
+const chalk = unwrapDefault(chalkModule)
+const figures = unwrapDefault(figuresModule)
 
 export interface MessageOutput {
   write(message: string): void | Promise<void>
@@ -88,4 +91,12 @@ function format (template: string, context: unknown[], figure: string) {
   const message = util.format(template, ...context.map(bold))
 
   return `${figure} ${message}`
+}
+
+function unwrapDefault<T> (module: T | { default: T }): T {
+  if (module && typeof module === 'object' && 'default' in module) {
+    return module.default
+  }
+
+  return module
 }

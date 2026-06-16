@@ -9,14 +9,12 @@ import type {
 import { run } from '@/index'
 import { main } from '@/cli'
 import {
-  CliParseError,
-  parseArgv,
-} from '@/cli/args'
-import { createReporter } from '@/cli/reporter'
-import {
   BufferedOutput,
+  CliParseError,
+  createReporter,
   Output,
-} from '@/cli/output'
+  parseArgv,
+} from '@/cli'
 
 import {
   afterEach,
@@ -125,6 +123,55 @@ describe('parseArgv', () => {
       verbose: false,
       tags: false,
     })
+  })
+})
+
+describe('Output', () => {
+  it('normalizes default-wrapped output dependencies', async () => {
+    const chalk = Object.assign((value: unknown) => String(value), {
+      yellow: (value: unknown) => `yellow(${String(value)})`,
+      green: (value: unknown) => `green(${String(value)})`,
+      red: (value: unknown) => `red(${String(value)})`,
+      blue: (value: unknown) => `blue(${String(value)})`,
+      bold: (value: unknown) => `bold(${String(value)})`,
+    })
+
+    vi.resetModules()
+    vi.doMock('chalk', () => ({
+      default: {
+        default: chalk,
+      },
+    }))
+    vi.doMock('figures', () => ({
+      default: {
+        default: {
+          tick: 'tick',
+          warning: 'warning',
+          cross: 'cross',
+          info: 'info',
+        },
+      },
+    }))
+
+    try {
+      const {
+        BufferedOutput: MockedBufferedOutput,
+        Output: MockedOutput,
+      } = await import('@/cli/output')
+      const sink = new MockedBufferedOutput()
+      const output = new MockedOutput({
+        dry: true,
+        output: sink,
+      })
+
+      output.success('Release %s', ['ready'])
+
+      expect(sink.messages).toEqual(['yellow(tick) Release bold(ready)'])
+    } finally {
+      vi.doUnmock('chalk')
+      vi.doUnmock('figures')
+      vi.resetModules()
+    }
   })
 })
 

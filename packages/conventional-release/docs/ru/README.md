@@ -128,6 +128,57 @@ bunx @modulify/conventional-release --dry
 CLI читает ту же конфигурацию репозитория, что и библиотечный API, и подключает lifecycle reporter к `run()`.
 Он останавливается после локального для репозитория завершения релиза и не публикует артефакты.
 
+## CLI API
+
+Компоненты CLI экспортируются из `@modulify/conventional-release/cli` для проектов, которым нужна собственная `main()` вокруг release core.
+Этот subpath является публичным API для переиспользования парсинга аргументов, форматированного консольного вывода и встроенного lifecycle reporter без зависимости от приватных исходных путей.
+
+```ts
+import { GitCommander } from '@modulify/git-toolkit'
+import { Runner } from '@modulify/git-toolkit/shell'
+import { run } from '@modulify/conventional-release'
+import {
+  ConsoleOutput,
+  Output,
+  createReporter,
+  parseArgv,
+} from '@modulify/conventional-release/cli'
+
+export async function main (argv = process.argv) {
+  const cwd = process.cwd()
+  const options = await parseArgv(argv)
+  const output = new Output({
+    dry: options.dry,
+    output: new ConsoleOutput(),
+  })
+  const git = new GitCommander({ sh: new Runner(cwd) })
+
+  await run({
+    cwd,
+    dry: options.dry,
+    releaseAs: options.releaseAs,
+    prerelease: options.prerelease,
+    reporter: createReporter({
+      output,
+      git,
+      showTags: options.tags,
+      verbosity: options.verbose
+        ? 'detailed'
+        : 'summary',
+    }),
+  })
+}
+```
+
+Если кастомный CLI напрямую импортирует `@modulify/git-toolkit`, добавьте этот пакет как прямую development dependency в целевом проекте.
+
+Subpath экспортирует:
+
+- `main()` для того же CLI entrypoint, который использует binary пакета
+- `parseArgv()`, `CliOptions`, `CliParseError` и `DEFAULTS` для парсинга CLI-опций
+- `createReporter()`, `ReporterOptions`, `ReporterGit` и `ReporterVerbosity` для подключения release lifecycle output
+- `Output`, `ConsoleOutput`, `BufferedOutput`, `MessageOutput` и `OutputTheme` для форматированного вывода или кастомных message sinks
+
 ## Inspect before running
 
 Используйте `createScope()`, когда нужен сухой и детерминированный вид формы релиза:

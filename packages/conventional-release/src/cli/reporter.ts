@@ -10,16 +10,23 @@ import type {
 
 import type { Output } from './output'
 
-type Git = {
+export type ReporterGit = {
   revParse(revision: string, options?: { abbrevRef?: boolean; }): Promise<string>
 }
 
-type Verbosity = 'summary' | 'detailed'
+export type ReporterVerbosity = 'summary' | 'detailed'
 
 type BaseReporterOptions = {
   output: Output
-  git: Git
+  git: ReporterGit
   showTags: boolean
+}
+
+export type ReporterOptions = {
+  output: Output
+  git: ReporterGit
+  showTags?: boolean
+  verbosity?: ReporterVerbosity
 }
 
 export function createReporter ({
@@ -27,12 +34,7 @@ export function createReporter ({
   git,
   showTags = false,
   verbosity = 'summary',
-}: {
-  output: Output;
-  git: Git;
-  showTags?: boolean;
-  verbosity?: Verbosity;
-}): Reporter {
+}: ReporterOptions): Reporter {
   if (verbosity === 'detailed') {
     return new DetailedReporter({
       output,
@@ -50,7 +52,7 @@ export function createReporter ({
 
 class SummaryReporter implements Reporter {
   protected readonly output: Output
-  protected readonly git: Git
+  protected readonly git: ReporterGit
   protected readonly showTags: boolean
   protected scope: Scope | null = null
   protected position = new Map<string, number>()
