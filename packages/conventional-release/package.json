@@ -1,7 +1,7 @@
 {
   "name": "@modulify/conventional-release",
   "type": "module",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "license": "ISC",
   "homepage": "https://github.com/modulify/conventional/tree/main/packages/conventional-release#readme",
   "repository": {
@@ -49,9 +49,9 @@
     }
   },
   "dependencies": {
-    "@modulify/conventional-bump": "^0.1.2",
-    "@modulify/conventional-changelog": "^0.1.2",
-    "@modulify/conventional-git": "^0.1.2",
+    "@modulify/conventional-bump": "^0.1.3",
+    "@modulify/conventional-changelog": "^0.1.3",
+    "@modulify/conventional-git": "^0.1.3",
     "@modulify/git-toolkit": "^0.0.3",
     "@modulify/pkg": "^1.0.1",
     "chalk": "^5.6.2",

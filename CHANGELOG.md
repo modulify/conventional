@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3
+
+### Features
+
+* **conventional-release:** Added public CLI API ([01c6710](https://github.com/modulify/conventional/commit/01c671007bd57a41bb734247f1db67610ec93883))
+
 ## 0.1.2
 
 ### Bug Fixes
